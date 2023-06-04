@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace GoCPA\SpaceHealthcheck;
 
+use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
 
 class SpaceHealthcheckServiceProvider extends PackageServiceProvider
 {
@@ -18,8 +21,15 @@ class SpaceHealthcheckServiceProvider extends PackageServiceProvider
         $package
             ->name('space-healthcheck')
             ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_space-healthcheck_table')
-            ->hasCommand(SpaceHealthcheckCommand::class);
+            ->hasRoute('web')
+            ->hasCommand(SpaceHealthcheckCommand::class)
+            ->hasInstallCommand(function (InstallCommand $command) {
+                $command
+                    ->endWith(function (InstallCommand $command) {
+                        $command->call(SpaceHealthcheckCommand::class);
+                        $command->call('config:clear');
+                        $command->info('Open this link in browser: ' . route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
+                    });
+            });
     }
 }
