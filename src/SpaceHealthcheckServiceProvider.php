@@ -28,7 +28,7 @@ class SpaceHealthcheckServiceProvider extends PackageServiceProvider
                     ->endWith(function (InstallCommand $command) {
                         $command->call(SpaceHealthcheckCommand::class);
                         $command->call('config:clear');
-                        $command->info('Open this link in browser: ' . route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
+                        $command->info('Open this link in browser: '.route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
                     });
             });
     }
