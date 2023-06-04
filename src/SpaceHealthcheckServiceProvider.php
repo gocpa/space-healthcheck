@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace GoCPA\SpaceHealthcheck;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use VendorName\Skeleton\Commands\SkeletonCommand;
+use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
 
-class SkeletonServiceProvider extends PackageServiceProvider
+class SpaceHealthcheckServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
@@ -16,10 +16,10 @@ class SkeletonServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-            ->name('skeleton')
+            ->name('space-healthcheck')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_skeleton_table')
-            ->hasCommand(SkeletonCommand::class);
+            ->hasMigration('create_space-healthcheck_table')
+            ->hasCommand(SpaceHealthcheckCommand::class);
     }
 }

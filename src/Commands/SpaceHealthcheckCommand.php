@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace GoCPA\SpaceHealthcheck\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class SpaceHealthcheckCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'space-healthcheck';
 
     public $description = 'My command';
 
