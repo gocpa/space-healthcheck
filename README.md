@@ -5,23 +5,13 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/gocpa/space-healthcheck/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/gocpa/space-healthcheck/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/gocpa/space-healthcheck.svg?style=flat-square)](https://packagist.org/packages/gocpa/space-healthcheck)
 
-Пакет для мониторинга зависимостей
+Пакет для мониторинга проектов GoCPA
 
 ## Установка
 
-You can install the package via composer:
+Вы можете установить данный пакет через composer:
 
 ```bash
 composer require gocpa/space-healthcheck
+php artisan space-healthcheck:install
 ```
-
-## Testing
-
-```bash
-composer test
-```
-
-## Credits
-
-- [Tony V](https://github.com/gocpa)
-- [All Contributors](../../contributors)
