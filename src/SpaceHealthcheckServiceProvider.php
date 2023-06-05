@@ -12,17 +12,17 @@ class SpaceHealthcheckServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/space-healthcheck.php',
+            __DIR__.'/../config/space-healthcheck.php',
             'space-healthcheck'
         );
     }
 
     public function boot(): void
     {
-        $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
 
         $this->publishes([
-            __DIR__ . '/../config/space-healthcheck.php' => config_path('space-healthcheck.php'),
+            __DIR__.'/../config/space-healthcheck.php' => config_path('space-healthcheck.php'),
         ]);
 
         if ($this->app->runningInConsole()) {

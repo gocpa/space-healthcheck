@@ -70,11 +70,11 @@ class SpaceHealthCheckController extends Controller
     private function getGitInfo(): ?array
     {
         try {
-            $gitBasePath = base_path() . '/.git';
+            $gitBasePath = base_path().'/.git';
 
-            $gitStr = file_get_contents($gitBasePath . '/HEAD');
+            $gitStr = file_get_contents($gitBasePath.'/HEAD');
             $branchName = rtrim(preg_replace("/(.*?\/){2}/", '', $gitStr));
-            $pathBranch = $gitBasePath . '/refs/heads/' . $branchName;
+            $pathBranch = $gitBasePath.'/refs/heads/'.$branchName;
             $hash = trim(file_get_contents($pathBranch));
             $date = filemtime($pathBranch);
 
