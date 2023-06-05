@@ -43,6 +43,8 @@ class SpaceHealthcheckCommand extends Command
             return 1;
         }
 
+        $this->info('Open this link in browser: ' . route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
+
         return self::SUCCESS;
     }
 
