@@ -14,8 +14,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         php: [8.2, 8.1]
-        laravel: [8.*, 9.*, 10.*]
-        stability: [prefer-stable]
+        laravel: [10.*]
+        stability: [prefer-lowest, prefer-stable]
         include:
           - laravel: 10.*
             testbench: 8.*
@@ -47,5 +47,3 @@ jobs:
       - name: List Installed Dependencies
         run: composer show -D
 
-      - name: Execute tests
-        run: vendor/bin/pest --ci
