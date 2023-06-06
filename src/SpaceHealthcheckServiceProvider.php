@@ -5,32 +5,36 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck;
 
 use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
-use Spatie\LaravelPackageTools\Commands\InstallCommand;
-use Spatie\LaravelPackageTools\Package;
-use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Illuminate\Support\ServiceProvider;
 
-class SpaceHealthcheckServiceProvider extends PackageServiceProvider
+class SpaceHealthcheckServiceProvider extends ServiceProvider
 {
-    public function configurePackage(Package $package): void
+    /**
+     * Bootstrap the application services.
+     */
+    public function boot()
     {
-        /*
-         * This class is a Package Service Provider
-         *
-         * More info: https://github.com/spatie/laravel-package-tools
-         */
-        $package
-            ->name('space-healthcheck')
-            ->hasConfigFile()
-            ->hasRoute('web')
-            ->hasCommand(SpaceHealthcheckCommand::class)
-            ->hasInstallCommand(function (InstallCommand $command) {
-                $command
-                    ->endWith(function (InstallCommand $command) {
-                        $command->call(SpaceHealthcheckCommand::class);
-                        $command->call('config:clear');
-                        $command->call('route:clear');
-                        $command->info('Open this link in browser: '.route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
-                    });
-            });
+        $this->loadRoutesFrom(__DIR__.'/routes/web.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/config.php' => config_path('space-healthcheck.php'),
+            ], 'config');
+
+            if ($this->app->runningInConsole()) {
+                $this->commands([
+                    SpaceHealthcheckCommand::class,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Register the application services.
+     */
+    public function register()
+    {
+        // Automatically apply the package configuration
+        $this->mergeConfigFrom(__DIR__.'/../config/space-healthcheck.php', 'space-healthcheck');
     }
 }

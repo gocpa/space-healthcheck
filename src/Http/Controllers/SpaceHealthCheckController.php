@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
 use GoCPA\SpaceHealthcheck\Http\Middleware\EnsureSecretKeyIsValid;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
+use OutOfBoundsException;
 use Spatie\Health\ResultStores\ResultStore;
 use Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResult;
 
@@ -18,7 +20,7 @@ class SpaceHealthCheckController extends Controller
     use ValidatesRequests;
 
     public function __construct(
-        private ResultStore $resultStore,
+        private ?ResultStore $resultStore = null,
     ) {
         $this->middleware(EnsureSecretKeyIsValid::class);
     }
@@ -36,14 +38,21 @@ class SpaceHealthCheckController extends Controller
             'spatie/laravel-health' => $this->getInstalledVersion('spatie/laravel-health'),
             'gocpa/space-healthcheck' => $this->getInstalledVersion('gocpa/space-healthcheck'),
         ];
-        $result['health'] = $this->getHealthData();
+        try {
+            $result['health'] = $this->getHealthData();
+        } catch (BindingResolutionException) {
+        }
 
         return new JsonResponse($result);
     }
 
     private function getInstalledVersion(string $packageName): ?string
     {
-        return \Composer\InstalledVersions::getVersion($packageName);
+        try {
+            return \Composer\InstalledVersions::getVersion($packageName);
+        } catch (OutOfBoundsException) {
+            return null;
+        }
     }
 
     private function getHealthData(): ?array

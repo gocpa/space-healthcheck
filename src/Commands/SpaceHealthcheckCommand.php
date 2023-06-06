@@ -22,7 +22,7 @@ class SpaceHealthcheckCommand extends Command
 
         $secretKey = $this->option('secretKey');
 
-        if (!empty($secretKey) || !$this->isEnvKeySet('GOCPASPACE_HEALTHCHECK_SECRET')) {
+        if (! empty($secretKey) || ! $this->isEnvKeySet('GOCPASPACE_HEALTHCHECK_SECRET')) {
             if (empty($secretKey)) {
                 $secretKeyFromInput = $this->askForSecretKeyInput();
 
@@ -39,9 +39,11 @@ class SpaceHealthcheckCommand extends Command
             $arg['--secretKey'] = $secretKey;
         }
 
-        if (!$this->setEnvValues($env)) {
+        if (! $this->setEnvValues($env)) {
             return 1;
         }
+
+        $this->info('Open this link in browser: '.route('space.check', ['secretKey' => config('space-healthcheck.secretKey')]));
 
         return self::SUCCESS;
     }
@@ -52,7 +54,7 @@ class SpaceHealthcheckCommand extends Command
 
         $envFileContents = file_get_contents($envFilePath);
 
-        if (!$envFileContents) {
+        if (! $envFileContents) {
             $this->error('Could not read `.env` file!');
 
             return false;
@@ -72,7 +74,7 @@ class SpaceHealthcheckCommand extends Command
             }
         }
 
-        if (!file_put_contents($envFilePath, $envFileContents)) {
+        if (! file_put_contents($envFilePath, $envFileContents)) {
             $this->error('Updating the `.env` file failed!');
 
             return false;
