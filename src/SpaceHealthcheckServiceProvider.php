@@ -14,13 +14,9 @@ class SpaceHealthcheckServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->loadRoutesFrom(__DIR__.'/routes/web.php');
+        $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
 
         if ($this->app->runningInConsole()) {
-            $this->publishes([
-                __DIR__.'/../config/config.php' => config_path('space-healthcheck.php'),
-            ], 'config');
-
             if ($this->app->runningInConsole()) {
                 $this->commands([
                     SpaceHealthcheckCommand::class,
@@ -35,6 +31,6 @@ class SpaceHealthcheckServiceProvider extends ServiceProvider
     public function register()
     {
         // Automatically apply the package configuration
-        $this->mergeConfigFrom(__DIR__.'/../config/space-healthcheck.php', 'space-healthcheck');
+        $this->mergeConfigFrom(__DIR__ . '/../config/space-healthcheck.php', 'space-healthcheck');
     }
 }
