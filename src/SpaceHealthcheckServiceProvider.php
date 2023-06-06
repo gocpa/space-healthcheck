@@ -9,26 +9,32 @@ use Illuminate\Support\ServiceProvider;
 
 class SpaceHealthcheckServiceProvider extends ServiceProvider
 {
-    public function register(): void
+    /**
+     * Bootstrap the application services.
+     */
+    public function boot()
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../config/space-healthcheck.php',
-            'space-healthcheck'
-        );
-    }
-
-    public function boot(): void
-    {
-        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
-
-        $this->publishes([
-            __DIR__.'/../config/space-healthcheck.php' => config_path('space-healthcheck.php'),
-        ]);
+        $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([
-                SpaceHealthcheckCommand::class,
-            ]);
+            $this->publishes([
+                __DIR__ . '/../config/config.php' => config_path('space-healthcheck.php'),
+            ], 'config');
+
+            if ($this->app->runningInConsole()) {
+                $this->commands([
+                    SpaceHealthcheckCommand::class,
+                ]);
+            }
         }
+    }
+
+    /**
+     * Register the application services.
+     */
+    public function register()
+    {
+        // Automatically apply the package configuration
+        $this->mergeConfigFrom(__DIR__ . '/../config/space-healthcheck.php', 'space-healthcheck');
     }
 }
