@@ -20,21 +20,20 @@ class SpaceHealthCheckController extends Controller
     /**
      * Выводит результат для мониторинга
      */
-    public function __invoke(): JsonResponse
+    public function __invoke(Git $git): JsonResponse
     {
         $result = [];
         $result['generatedAt'] = now()->timestamp;
-        $result['git'] = $this->getGitInfo();
+        $result['git'] = $this->getGitInfo($git);
         $result['composer'] = $this->getComposerInfo();
         $result['health'] = $this->getHealthData();
 
         return new JsonResponse($result);
     }
 
-    private function getGitInfo(): ?array
+    private function getGitInfo(Git $git): ?array
     {
         try {
-            $git = new Git();
             $branchName = $git->getBranchName();
             $hash = $git->getHash();
             $commitDate = $git->getCommitDate($branchName);
