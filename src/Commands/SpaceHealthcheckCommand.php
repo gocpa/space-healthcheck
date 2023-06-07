@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class SpaceHealthcheckCommand extends Command
 {
-    public $signature = 'gocpa:space-healthcheck {--secretKey=}';
+    public $signature = 'gocpa:space-check {--secretKey=}';
 
     public $description = 'Configures the GoCPA/HealthCheck config.';
 
