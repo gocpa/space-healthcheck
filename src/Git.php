@@ -19,20 +19,20 @@ class Git
         }
 
         $this->base_path = $basePath;
-        $this->head = trim(substr(file_get_contents($this->base_path.'HEAD'), 4));
+        $this->head = trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
     }
 
     public function getBranchName(): string
     {
-        return rtrim(preg_replace("/(.*?\/){2}/", '', $this->head));
+        return rtrim((string) preg_replace("/(.*?\/){2}/", '', $this->head));
     }
 
     public function getHash(): string
     {
-        return trim(file_get_contents(sprintf($this->base_path.$this->head)));
+        return trim((string) file_get_contents(sprintf($this->base_path.$this->head)));
     }
 
-    public function getCommitDate($branchName): int|false
+    public function getCommitDate(string $branchName): int|false
     {
         $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
 

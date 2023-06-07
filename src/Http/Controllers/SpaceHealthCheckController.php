@@ -72,10 +72,13 @@ class SpaceHealthCheckController extends Controller
             return null;
         }
 
+        /** @var \Spatie\Health\ResultStores\ResultStore */ // @phpstan-ignore-next-line
         $resultStore = app()->get('Spatie\Health\ResultStores\ResultStore');
 
         return [
+            // @phpstan-ignore-next-line
             'finishedAt' => $resultStore->latestResults()?->finishedAt->getTimestamp(),
+            // @phpstan-ignore-next-line
             'checkResults' => $resultStore->latestResults()?->storedCheckResults->map(fn ($line) => $line->toArray()),
         ];
     }
