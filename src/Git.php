@@ -12,14 +12,14 @@ class Git
 
     private string $head;
 
+    /**
+     * @throws GitNotFoundException
+     */
     public function __construct()
     {
-        if (! is_dir($basePath = base_path('.git/'))) {
-            throw new GitNotFoundException('git not found');
-        }
-
-        $this->base_path = $basePath;
-        $this->head = trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
+        $this->base_path = $this->getBasePath();
+        $this->head = $this->getHeadFileContents();
+        dump($this->base_path, $this->head);
     }
 
     public function getBranchName(): string
@@ -37,5 +37,22 @@ class Git
         $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
 
         return filemtime($pathBranch);
+    }
+
+    /**
+     * @throws GitNotFoundException
+     */
+    private function getBasePath(): string
+    {
+        if (! is_dir($basePath = base_path('.git/'))) {
+            throw new GitNotFoundException('git not found');
+        }
+
+        return $basePath;
+    }
+
+    private function getHeadFileContents(): string
+    {
+        return trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
     }
 }

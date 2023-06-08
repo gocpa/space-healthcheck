@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck;
 
-use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
+use GoCPA\SpaceHealthcheck\Commands\SpaceCheckCommand;
 use Illuminate\Support\ServiceProvider;
 
 final class SpaceHealthcheckServiceProvider extends ServiceProvider
@@ -27,7 +27,7 @@ final class SpaceHealthcheckServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands(
                 commands: [
-                    SpaceHealthcheckCommand::class,
+                    SpaceCheckCommand::class,
                 ]
             );
         }

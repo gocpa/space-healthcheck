@@ -7,7 +7,7 @@ namespace GoCPA\SpaceHealthcheck\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-class SpaceHealthcheckCommand extends Command
+final class SpaceCheckCommand extends Command
 {
     public $signature = 'gocpa:space-check {--secretKey=}';
 
