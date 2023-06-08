@@ -4,33 +4,39 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck;
 
-use GoCPA\SpaceHealthcheck\Commands\SpaceHealthcheckCommand;
+use GoCPA\SpaceHealthcheck\Commands\SpaceCheckCommand;
 use Illuminate\Support\ServiceProvider;
 
-class SpaceHealthcheckServiceProvider extends ServiceProvider
+final class SpaceHealthcheckServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap the application services.
+     *
+     * @return void
      */
     public function boot()
     {
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->publishes(
-            [
+            paths: [
                 __DIR__.'/../config/space-healthcheck.php' => config_path('space-healthcheck.php'),
             ],
-            'config'
+            groups: 'config'
         );
 
         if ($this->app->runningInConsole()) {
-            $this->commands([
-                SpaceHealthcheckCommand::class,
-            ]);
+            $this->commands(
+                commands: [
+                    SpaceCheckCommand::class,
+                ]
+            );
         }
     }
 
     /**
      * Register the application services.
+     *
+     * @return void
      */
     public function register()
     {

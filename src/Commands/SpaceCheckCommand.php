@@ -7,9 +7,9 @@ namespace GoCPA\SpaceHealthcheck\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-class SpaceHealthcheckCommand extends Command
+final class SpaceCheckCommand extends Command
 {
-    public $signature = 'gocpa:space-healthcheck {--secretKey=}';
+    public $signature = 'gocpa:space-check {--secretKey=}';
 
     public $description = 'Configures the GoCPA/HealthCheck config.';
 
@@ -52,6 +52,7 @@ class SpaceHealthcheckCommand extends Command
     {
         $envFilePath = app()->environmentFilePath();
 
+        /** @var string|null $envFileContents */
         $envFileContents = file_get_contents($envFilePath);
 
         if (! $envFileContents) {
@@ -63,7 +64,7 @@ class SpaceHealthcheckCommand extends Command
         if (count($values) > 0) {
             foreach ($values as $envKey => $envValue) {
                 if ($this->isEnvKeySet($envKey, $envFileContents)) {
-                    $envFileContents = preg_replace("/^{$envKey}=.*?[\s$]/m", "{$envKey}={$envValue}\n", $envFileContents);
+                    $envFileContents = preg_replace("/^{$envKey}=.*?[\s$]/m", "{$envKey}={$envValue}\n", (string) $envFileContents);
 
                     $this->info("Updated {$envKey} with new value in your `.env` file.");
                 } else {
@@ -87,7 +88,7 @@ class SpaceHealthcheckCommand extends Command
     {
         $envFileContents = $envFileContents ?? file_get_contents(app()->environmentFilePath());
 
-        return (bool) preg_match("/^{$envKey}=.*?[\s$]/m", $envFileContents);
+        return (bool) preg_match("/^{$envKey}=.*?[\s$]/m", (string) $envFileContents);
     }
 
     private function askForSecretKeyInput(): string
@@ -101,6 +102,7 @@ class SpaceHealthcheckCommand extends Command
 
             $this->question('Please paste the GoCPA.space Healthcheck secret key here');
 
+            /** @var string */
             $secretKey = $this->ask('Secret Key');
 
             // In case someone copies it with GOCPASPACE_HEALTHCHECK_SECRET=

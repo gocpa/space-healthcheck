@@ -4,46 +4,58 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
-use GoCPA\SpaceHealthcheck\Http\Middleware\EnsureSecretKeyIsValid;
-use Illuminate\Contracts\Container\BindingResolutionException;
+use GoCPA\SpaceHealthcheck\Exceptions\GitNotFoundException;
+use GoCPA\SpaceHealthcheck\Git;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
-use Spatie\Health\ResultStores\ResultStore;
-use Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResult;
 
 class SpaceHealthCheckController extends Controller
 {
     use AuthorizesRequests;
     use ValidatesRequests;
 
-    public function __construct(
-        private ?ResultStore $resultStore = null,
-    ) {
-        $this->middleware(EnsureSecretKeyIsValid::class);
-    }
-
     /**
      * Выводит результат для мониторинга
      */
-    public function __invoke(): JsonResponse
+    public function __invoke(Git $git): JsonResponse
     {
         $result = [];
-        $result['generatedAt'] = time();
-        $result['git'] = $this->getGitInfo();
-        $result['composer'] = [
+        $result['generatedAt'] = now()->timestamp;
+        $result['git'] = $this->getGitInfo($git);
+        $result['composer'] = $this->getComposerInfo();
+        $result['health'] = $this->getHealthData();
+
+        return new JsonResponse($result);
+    }
+
+    private function getGitInfo(Git $git): ?array
+    {
+        try {
+            $branchName = $git->getBranchName();
+            $hash = $git->getHash();
+            $commitDate = $git->getCommitDate($branchName);
+
+            return [
+                'branchName' => $branchName,
+                'hash' => $hash,
+                'date' => $commitDate,
+            ];
+        } catch (GitNotFoundException) {
+            return null;
+        }
+    }
+
+    private function getComposerInfo(): array
+    {
+        return [
             'laravel/framework' => $this->getInstalledVersion('laravel/framework'),
+            'barryvdh/laravel-debugbar' => $this->getInstalledVersion('laravel/framework'),
             'spatie/laravel-health' => $this->getInstalledVersion('spatie/laravel-health'),
             'gocpa/space-healthcheck' => $this->getInstalledVersion('gocpa/space-healthcheck'),
         ];
-        try {
-            $result['health'] = $this->getHealthData();
-        } catch (BindingResolutionException) {
-        }
-
-        return new JsonResponse($result);
     }
 
     private function getInstalledVersion(string $packageName): ?string
@@ -57,34 +69,18 @@ class SpaceHealthCheckController extends Controller
 
     private function getHealthData(): ?array
     {
-        try {
-            return [
-                'finishedAt' => $this->resultStore->latestResults()?->finishedAt->getTimestamp(),
-                'checkResults' => $this->resultStore->latestResults()?->storedCheckResults->map(fn (StoredCheckResult $line) => $line->toArray()),
-            ];
-        } catch (\Throwable $th) {
+        if (! app()->bound('Spatie\Health\ResultStores\ResultStore')) {
             return null;
         }
-    }
 
-    private function getGitInfo(): ?array
-    {
-        try {
-            $gitBasePath = base_path().'/.git';
+        /** @var \Spatie\Health\ResultStores\ResultStore */ // @phpstan-ignore-next-line
+        $resultStore = app()->get('Spatie\Health\ResultStores\ResultStore');
 
-            $gitStr = file_get_contents($gitBasePath.'/HEAD');
-            $branchName = rtrim(preg_replace("/(.*?\/){2}/", '', $gitStr));
-            $pathBranch = $gitBasePath.'/refs/heads/'.$branchName;
-            $hash = trim(file_get_contents($pathBranch));
-            $date = filemtime($pathBranch);
-
-            return compact(
-                'branchName',
-                'hash',
-                'date',
-            );
-        } catch (\Throwable $th) {
-            return null;
-        }
+        return [
+            // @phpstan-ignore-next-line
+            'finishedAt' => $resultStore->latestResults()?->finishedAt->getTimestamp(),
+            // @phpstan-ignore-next-line
+            'checkResults' => $resultStore->latestResults()?->storedCheckResults->map(fn ($line) => $line->toArray()),
+        ];
     }
 }

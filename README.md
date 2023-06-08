@@ -13,5 +13,9 @@
 
 ```bash
 composer require gocpa/space-healthcheck
-php artisan space-healthcheck:install
+# Получите секретный ключ и введите его на стенде
+php artisan gocpa:space-check
 ```
+
+Проверьте, что в .env записалась строка, откройте страницу 
+`host/space/check?secretKey=randomsecretkey`

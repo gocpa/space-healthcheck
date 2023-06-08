@@ -3,7 +3,6 @@
     "description": "Package for GoCPA.space healthcheck integration",
     "keywords": [
         "gocpa",
-        "laravel",
         "space-healthcheck"
     ],
     "homepage": "https://github.com/gocpa/space-healthcheck",
@@ -18,15 +17,45 @@
     ],
     "require": {
         "php": "^8.0",
+        "ext-json": "*",
         "illuminate/support": "^8.0|^9.0|^10.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "nunomaduro/larastan": "^1.0.3|^2.4",
+        "orchestra/testbench": "^6.23|^7.6|^8.0",
+        "pestphp/pest": "^1.21.3",
+        "pestphp/pest-plugin-laravel": "^1.2",
+        "phpstan/extension-installer": "^1.1",
+        "phpstan/phpstan-deprecation-rules": "^1.0",
+        "phpstan/phpstan-phpunit": "^1.0"
+    },
+    "suggest": {
+        "spatie/laravel-health": "Monitor the health of a Laravel application"
     },
     "autoload": {
         "psr-4": {
             "GoCPA\\SpaceHealthcheck\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "GoCPA\\SpaceHealthcheck\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
     },
     "extra": {
         "laravel": {
