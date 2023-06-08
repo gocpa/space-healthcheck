@@ -19,7 +19,6 @@ class Git
     {
         $this->base_path = $this->getBasePath();
         $this->head = $this->getHeadFileContents();
-        dump($this->base_path, $this->head);
     }
 
     public function getBranchName(): string
