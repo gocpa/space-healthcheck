@@ -52,6 +52,7 @@ class SpaceHealthCheckController extends Controller
     {
         return [
             'laravel/framework' => $this->getInstalledVersion('laravel/framework'),
+            'barryvdh/laravel-debugbar' => $this->getInstalledVersion('laravel/framework'),
             'spatie/laravel-health' => $this->getInstalledVersion('spatie/laravel-health'),
             'gocpa/space-healthcheck' => $this->getInstalledVersion('gocpa/space-healthcheck'),
         ];
