@@ -13,8 +13,12 @@
 
 ```bash
 composer require gocpa/space-healthcheck
-# Получите секретный ключ и введите его на стенде
-php artisan gocpa:space-check
+```
+
+После установки добавьте секретный ключ в файл .env
+
+```ini
+GOCPASPACE_HEALTHCHECK_SECRET=
 ```
 
 Проверьте, что в .env записалась строка, откройте страницу 
