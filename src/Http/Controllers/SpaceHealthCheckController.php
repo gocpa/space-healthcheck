@@ -55,6 +55,7 @@ class SpaceHealthCheckController extends Controller
             'barryvdh/laravel-debugbar' => $this->getInstalledVersion('laravel/framework'),
             'spatie/laravel-health' => $this->getInstalledVersion('spatie/laravel-health'),
             'gocpa/space-healthcheck' => $this->getInstalledVersion('gocpa/space-healthcheck'),
+            'gocpa/vulnerability-scanner-honeypot' => $this->getInstalledVersion('gocpa/vulnerability-scanner-honeypot'),
         ];
     }
 
