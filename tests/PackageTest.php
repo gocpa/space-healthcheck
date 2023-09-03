@@ -3,6 +3,7 @@
 use GoCPA\SpaceHealthcheck\Git;
 use Illuminate\Support\Facades\Config;
 use Mockery\MockInterface;
+
 use function Pest\Laravel\getJson;
 
 it('has result with correct secretKey', function () {
