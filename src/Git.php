@@ -34,7 +34,7 @@ class Git
     public function getCommitDate(string $branchName): int|false
     {
         $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
-        if (!is_file($pathBranch)) {
+        if (! is_file($pathBranch)) {
             return false;
         }
 
