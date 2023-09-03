@@ -11,6 +11,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
+use Throwable;
 
 class SpaceHealthCheckController extends Controller
 {
@@ -43,7 +44,7 @@ class SpaceHealthCheckController extends Controller
                 'hash' => $hash,
                 'date' => $commitDate,
             ];
-        } catch (GitNotFoundException) {
+        } catch (GitNotFoundException|Throwable) {
             return null;
         }
     }
