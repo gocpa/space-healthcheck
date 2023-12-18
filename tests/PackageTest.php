@@ -20,13 +20,13 @@ it('has result with correct secretKey', function () {
         $mock->shouldReceive('getCommitDate')->once()->andReturn($gitInfo['date']);
     });
 
-    Config::set('space-healthcheck.secretKey', $secretKey = 'mitrofan');
-    expect(getJson('/space/check?secretKey='.$secretKey))->assertOk();
+    Config::set('space-healthcheck.secretKey', 'mitrofan');
+    expect(getJson('/space/check', ['x-space-secret-key' => 'mitrofan']))->assertOk();
 });
 
 it('has result with incorrect secretKey', function () {
     Config::set('space-healthcheck.secretKey', 'mitrofan');
-    expect(getJson('/space/check?secretKey=invalid-secret-key'))->assertNotFound();
+    expect(getJson('/space/check', ['x-space-secret-key' => 'invalid-secret-key']))->assertNotFound();
 });
 
 it('has result with empty secretKey', function () {

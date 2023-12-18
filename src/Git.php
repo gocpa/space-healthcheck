@@ -8,53 +8,68 @@ use GoCPA\SpaceHealthcheck\Exceptions\GitNotFoundException;
 
 class Git
 {
-    private string $base_path;
+    private string $gitDir = '.git';
 
-    private string $head;
-
-    /**
-     * @throws GitNotFoundException
-     */
-    public function __construct()
+    public function __construct(?string $repositoryPath = null)
     {
-        $this->base_path = $this->getBasePath();
-        $this->head = $this->getHeadFileContents();
+        if ($repositoryPath) {
+            $this->gitDir = rtrim($repositoryPath, '/').'/.git';
+        } else {
+            $this->gitDir = base_path($this->gitDir);
+        }
     }
 
-    public function getBranchName(): string
+    public function getBranchName(): ?string
     {
-        return rtrim((string) preg_replace("/(.*?\/){2}/", '', $this->head));
-    }
-
-    public function getHash(): string
-    {
-        return trim((string) file_get_contents(sprintf($this->base_path.$this->head)));
-    }
-
-    public function getCommitDate(string $branchName): int|false
-    {
-        $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
-        if (! is_file($pathBranch)) {
-            return false;
+        $headContent = $this->getFile($this->gitDir.'/HEAD');
+        if (preg_match('#ref: refs/heads/(.+)#', $headContent, $matches)) {
+            return trim($matches[1]);
         }
 
-        return filemtime($pathBranch);
+        return null;
     }
 
-    /**
-     * @throws GitNotFoundException
-     */
-    private function getBasePath(): string
+    public function getHash(): ?string
     {
-        if (! is_dir($basePath = base_path('.git/'))) {
-            throw new GitNotFoundException('git not found');
+        $branchName = $this->getBranchName();
+        if ($branchName) {
+            return trim($this->getFile($this->gitDir.'/refs/heads/'.$branchName));
         }
 
-        return $basePath;
+        return null;
     }
 
-    private function getHeadFileContents(): string
+    public function getCommitDate(): ?int
     {
-        return trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
+        $hash = $this->getHash();
+        if (! $hash) {
+            return null;
+        }
+
+        $filePath = $this->gitDir.'/objects/'.substr($hash, 0, 2).'/'.substr($hash, 2);
+        $commitData = $this->getFile($filePath);
+        if (! $commitData) {
+            return null;
+        }
+
+        $commitData = zlib_decode($commitData);
+        if (! $commitData) {
+            return null;
+        }
+
+        if (preg_match('/committer .*? (\d+) \+/', $commitData, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
+    public function getFile(string $file): string
+    {
+        if (! is_file($file)) {
+            throw new GitNotFoundException();
+        }
+
+        return (string) file_get_contents($file);
     }
 }
