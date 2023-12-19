@@ -41,27 +41,22 @@ class Git
 
     public function getCommitDate(): ?int
     {
-        // $hash = $this->getHash();
-        // if (! $hash) {
-        //     return null;
-        // }
+        try {
+            $hash = $this->getHash();
+            if (! $hash) {
+                return null;
+            }
 
-        // $filePath = $this->gitDir.'/objects/'.substr($hash, 0, 2).'/'.substr($hash, 2);
-        // $commitData = $this->getFile($filePath);
-        // if (! $commitData) {
-        //     return null;
-        // }
+            $pathBranch = $this->gitDir.'/refs/heads/'.$branchName;
+            if (! is_file($pathBranch)) {
+                return false;
+            }
 
-        // $commitData = zlib_decode($commitData);
-        // if (! $commitData) {
-        //     return null;
-        // }
+            return filemtime($pathBranch);
 
-        // if (preg_match('/committer .*? (\d+) \+/', $commitData, $matches)) {
-        //     return (int) $matches[1];
-        // }
-
-        return null;
+        } catch (\Throwable $th) {
+            return null;
+        }
     }
 
     public function getFile(string $file): string
