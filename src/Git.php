@@ -41,25 +41,25 @@ class Git
 
     public function getCommitDate(): ?int
     {
-        $hash = $this->getHash();
-        if (! $hash) {
-            return null;
-        }
+        // $hash = $this->getHash();
+        // if (! $hash) {
+        //     return null;
+        // }
 
-        $filePath = $this->gitDir.'/objects/'.substr($hash, 0, 2).'/'.substr($hash, 2);
-        $commitData = $this->getFile($filePath);
-        if (! $commitData) {
-            return null;
-        }
+        // $filePath = $this->gitDir.'/objects/'.substr($hash, 0, 2).'/'.substr($hash, 2);
+        // $commitData = $this->getFile($filePath);
+        // if (! $commitData) {
+        //     return null;
+        // }
 
-        $commitData = zlib_decode($commitData);
-        if (! $commitData) {
-            return null;
-        }
+        // $commitData = zlib_decode($commitData);
+        // if (! $commitData) {
+        //     return null;
+        // }
 
-        if (preg_match('/committer .*? (\d+) \+/', $commitData, $matches)) {
-            return (int) $matches[1];
-        }
+        // if (preg_match('/committer .*? (\d+) \+/', $commitData, $matches)) {
+        //     return (int) $matches[1];
+        // }
 
         return null;
     }
