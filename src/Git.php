@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck;
 
-use GoCPA\SpaceHealthcheck\Exceptions\GitNotFoundException;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 
 class Git
 {
@@ -67,7 +67,7 @@ class Git
     public function getFile(string $file): string
     {
         if (! is_file($file)) {
-            throw new GitNotFoundException();
+            throw new FileNotFoundException($file);
         }
 
         return (string) file_get_contents($file);
