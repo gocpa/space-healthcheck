@@ -4,67 +4,57 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck;
 
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Exception;
 
 class Git
 {
-    private string $gitDir = '.git';
+    private string $base_path;
 
-    public function __construct(?string $repositoryPath = null)
+    private string $head;
+
+    /**
+     * @throws Exception
+     */
+    public function __construct()
     {
-        if ($repositoryPath) {
-            $this->gitDir = rtrim($repositoryPath, '/').'/.git';
-        } else {
-            $this->gitDir = base_path($this->gitDir);
-        }
+        $this->base_path = $this->getBasePath();
+        $this->head = $this->getHeadFileContents();
     }
 
-    public function getBranchName(): ?string
+    public function getBranchName(): string
     {
-        $headContent = $this->getFile($this->gitDir.'/HEAD');
-        if (preg_match('#ref: refs/heads/(.+)#', $headContent, $matches)) {
-            return trim($matches[1]);
-        }
-
-        return null;
+        return rtrim((string) preg_replace("/(.*?\/){2}/", '', $this->head));
     }
 
-    public function getHash(): ?string
+    public function getHash(): string
     {
-        $branchName = $this->getBranchName();
-        if ($branchName) {
-            return trim($this->getFile($this->gitDir.'/refs/heads/'.$branchName));
-        }
-
-        return null;
+        return trim((string) file_get_contents(sprintf($this->base_path.$this->head)));
     }
 
-    public function getCommitDate(): ?int
+    public function getCommitDate(string $branchName): int|false
     {
-        try {
-            $hash = $this->getHash();
-            if (! $hash) {
-                return null;
-            }
-
-            $pathBranch = $this->gitDir.'/refs/heads/'.$branchName;
-            if (! is_file($pathBranch)) {
-                return false;
-            }
-
-            return filemtime($pathBranch);
-
-        } catch (\Throwable $th) {
-            return null;
+        $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
+        if (! is_file($pathBranch)) {
+            return false;
         }
+
+        return filemtime($pathBranch);
     }
 
-    public function getFile(string $file): string
+    /**
+     * @throws Exception
+     */
+    private function getBasePath(): string
     {
-        if (! is_file($file)) {
-            throw new FileNotFoundException($file);
+        if (! is_dir($basePath = base_path('.git/'))) {
+            throw new Exception('git not found');
         }
 
-        return (string) file_get_contents($file);
+        return $basePath;
+    }
+
+    private function getHeadFileContents(): string
+    {
+        return trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
     }
 }
