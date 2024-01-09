@@ -36,10 +36,13 @@ class SpaceHealthCheckController extends Controller
     {
         $git = app(Git::class);
 
+        $branchName = $git->getBranchName();
+        $hash = $git->getHash();
+        $date = $git->getCommitDate($branchName);
         return [
-            'branchName' => $git->getBranchName(),
-            'hash' => $git->getHash(),
-            'date' => $git->getCommitDate(),
+            'branchName' => $branchName,
+            'hash' => $hash,
+            'date' => $date,
         ];
     }
 
