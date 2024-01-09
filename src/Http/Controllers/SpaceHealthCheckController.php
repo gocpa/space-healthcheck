@@ -39,6 +39,7 @@ class SpaceHealthCheckController extends Controller
         $branchName = $git->getBranchName();
         $hash = $git->getHash();
         $date = $git->getCommitDate($branchName);
+
         return [
             'branchName' => $branchName,
             'hash' => $hash,
