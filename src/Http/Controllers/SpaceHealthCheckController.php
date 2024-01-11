@@ -28,6 +28,10 @@ class SpaceHealthCheckController extends Controller
         $result['git'] = $this->getGitInfo();
         $result['composer'] = $this->getComposerInfo();
         $result['health'] = $this->getHealthData();
+        $result['environment'] = config('app.env');
+        $result['name'] = config('app.name');
+        $result['env'] = config('app.env');
+        $result['debug'] = config('app.debug');
 
         return new JsonResponse($result);
     }
