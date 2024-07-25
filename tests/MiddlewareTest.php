@@ -14,7 +14,7 @@ test('middleware пропускает дальше с правильным кл�
     $request->headers->set('x-space-secret-key', 'valid-secret-key');
     $next = fn () => response('correct result');
 
-    $middleware = new EnsureSecretKeyIsValid();
+    $middleware = new EnsureSecretKeyIsValid;
     $response = $middleware->handle($request, $next);
 
     expect($response->getStatusCode())->toBe(Response::HTTP_OK);
@@ -27,7 +27,7 @@ test('middleware возвращает 404 при неправильном клю
     $next = fn () => response('correct result');
 
     try {
-        $middleware = new EnsureSecretKeyIsValid();
+        $middleware = new EnsureSecretKeyIsValid;
         $middleware->handle($request, $next);
     } catch (\Symfony\Component\HttpKernel\Exception\HttpException $th) {
     }
@@ -41,7 +41,7 @@ test('middleware возвращает 403 при пустом ключе', funct
     $next = fn () => response('correct result');
 
     try {
-        $middleware = new EnsureSecretKeyIsValid();
+        $middleware = new EnsureSecretKeyIsValid;
         $middleware->handle($request, $next);
     } catch (\Symfony\Component\HttpKernel\Exception\HttpException $th) {
     }

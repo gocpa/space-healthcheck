@@ -36,6 +36,7 @@ class SpaceHealthCheckController extends Controller
         return new JsonResponse($result);
     }
 
+    /** @return array<string,string|null> */
     private function getGitInfo(): array
     {
         $git = app(Git::class);
@@ -51,6 +52,7 @@ class SpaceHealthCheckController extends Controller
         ];
     }
 
+    /** @return array<string,string|null> */
     private function getComposerInfo(): array
     {
         $packages = [
@@ -87,7 +89,8 @@ class SpaceHealthCheckController extends Controller
         }
     }
 
-    private function getHealthData(): array
+    /** @return array<string,int|null> */
+    private function getHealthData(): ?array
     {
         try {
             $resultStore = app('Spatie\Health\ResultStores\ResultStore');
@@ -95,15 +98,16 @@ class SpaceHealthCheckController extends Controller
             /** @var stdClass|null */
             $latestResults = $resultStore->latestResults();
 
+            $finishedAt = $latestResults?->finishedAt->getTimestamp() ?? null;
+            /** @var array<int,array<string,mixed>> $checkResults */
+            $checkResults = $latestResults?->storedCheckResults->map(fn ($line) => $line->toArray())->toArray() ?? null;
+
             return [
-                'finishedAt' => $latestResults?->finishedAt->getTimestamp(),
-                'checkResults' => $latestResults?->storedCheckResults->map(fn ($line) => $line->toArray())->toArray(),
+                'finishedAt' => $finishedAt,
+                'checkResults' => $checkResults,
             ];
-        } catch (BindingResolutionException $th) {
-            return [
-                'finishedAt' => null,
-                'checkResults' => [],
-            ];
+        } catch (BindingResolutionException) {
+            return null;
         }
     }
 }
