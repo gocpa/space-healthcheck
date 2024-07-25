@@ -9,17 +9,20 @@
 
 ## Установка
 
-Вы можете установить данный пакет через composer:
-
-```bash
+```shell
 composer require gocpa/space-healthcheck
 ```
 
-После установки добавьте секретный ключ в файл .env
+После установки добавьте на стенды секретный ключ в файл .env
 
 ```ini
-GOCPASPACE_HEALTHCHECK_SECRET=
+GOCPASPACE_HEALTHCHECK_SECRET=секретный_токен
 ```
 
-Проверьте, что в .env записалась строка, откройте страницу 
-`host/space/check?secretKey=randomsecretkey`
+# Проверка
+
+```shell
+source .env
+curl "${APP_URL}/space/check" --header "accept: application/json" --header "x-space-secret-key: ${GOCPASPACE_HEALTHCHECK_SECRET}"
+```
+
