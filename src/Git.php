@@ -10,8 +10,6 @@ class Git
 {
     private string $base_path;
 
-    private string $head;
-
     /**
      * @throws Exception
      */
@@ -20,18 +18,22 @@ class Git
         $this->base_path = $this->getBasePath();
     }
 
+    /**
+     * @return array{"branchName": ?string, "hash": ?string, "date": ?numeric-string}
+     */
     public function run(): array
     {
         $branch = null;
         $commitHash = null;
-        $tag = null;
         $commitDate = null;
 
         try {
             // Получение текущей ветки
             $headFile = file_get_contents($this->base_path . '/HEAD');
-            preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
-            $branch = $matches[1] ?? null;
+            if ($headFile) {
+                preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
+                $branch = $matches[1] ?? null;
+            }
         } catch (\Throwable) {
         }
 
@@ -40,19 +42,9 @@ class Git
             if ($branch) {
                 $branchFile = $this->base_path . '/refs/heads/' . $branch;
                 if (file_exists($branchFile)) {
-                    $commitHash = trim(file_get_contents($branchFile));
-                }
-            }
-        } catch (\Throwable) {
-        }
-
-        // Получение последнего тега
-        try {
-            $tagsPath = $this->base_path . '/refs/tags';
-            if (is_dir($tagsPath)) {
-                $tags = array_diff(scandir($tagsPath), ['.', '..']);
-                if (!empty($tags)) {
-                    $tag = end($tags);
+                    /** @var string $branchFileContent */
+                    $branchFileContent = file_get_contents($branchFile);
+                    $commitHash = trim($branchFileContent);
                 }
             }
         } catch (\Throwable) {
@@ -66,8 +58,10 @@ class Git
                     $rawCommit = file_get_contents($objectsPath);
                     if ($rawCommit) {
                         $decodedCommit = zlib_decode($rawCommit);
-                        if (preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
-                            $commitDate = $matches[1] ?? -1;
+                        if ($decodedCommit) {
+                            if (preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
+                                $commitDate = $matches[1];
+                            }
                         }
                     }
                 }
@@ -77,7 +71,6 @@ class Git
 
         return [
             'branchName' => $branch,
-            'tag' => $tag,
             'hash' => $commitHash,
             'date' => $commitDate,
         ];
