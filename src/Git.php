@@ -8,37 +8,26 @@ use Exception;
 
 class Git
 {
-    private string $base_path;
-
-    private string $head;
+    private string $basePath;
 
     /**
      * @throws Exception
      */
     public function __construct()
     {
-        $this->base_path = $this->getBasePath();
-        $this->head = $this->getHeadFileContents();
+        $this->basePath = $this->getBasePath();
     }
 
-    public function getBranchName(): string
+    /**
+     * @return array{"branchName": ?string, "hash": ?string, "date": ?int}
+     */
+    public function run(): array
     {
-        return rtrim((string) preg_replace("/(.*?\/){2}/", '', $this->head));
-    }
-
-    public function getHash(): string
-    {
-        return trim((string) file_get_contents(sprintf($this->base_path.$this->head)));
-    }
-
-    public function getCommitDate(string $branchName): int|false
-    {
-        $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
-        if (! is_file($pathBranch)) {
-            return false;
-        }
-
-        return filemtime($pathBranch);
+        return [
+            'branchName' => $branch = $this->getCurrentBranch(),
+            'hash' => $commitHash = $this->getLatestCommitHash($branch),
+            'date' => $commitHash ? $this->getCommitDate($commitHash) : null,
+        ];
     }
 
     /**
@@ -46,15 +35,63 @@ class Git
      */
     private function getBasePath(): string
     {
-        if (! is_dir($basePath = base_path('.git/'))) {
+        $basePath = base_path('.git/');
+        if (! is_dir($basePath)) {
             throw new Exception('git not found');
         }
 
-        return $basePath;
+        return rtrim($basePath, '/');
     }
 
-    private function getHeadFileContents(): string
+    private function getCurrentBranch(): ?string
     {
-        return trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
+        try {
+            $headFileContent = @file_get_contents("{$this->basePath}/HEAD");
+            if ($headFileContent && preg_match('/ref: refs\/heads\/(.*)/', $headFileContent, $matches)) {
+                return $matches[1];
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+
+        return null;
+    }
+
+    private function getLatestCommitHash(?string $branch): ?string
+    {
+        if (! $branch) {
+            return null;
+        }
+
+        try {
+            $branchFile = "{$this->basePath}/refs/heads/{$branch}";
+            if (file_exists($branchFile)) {
+                return trim((string) file_get_contents($branchFile)) ?: null;
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+
+        return null;
+    }
+
+    private function getCommitDate(string $commitHash): ?int
+    {
+        try {
+            $objectsPath = "{$this->basePath}/objects/".substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
+            if (file_exists($objectsPath)) {
+                $rawCommit = file_get_contents($objectsPath);
+                if ($rawCommit) {
+                    $decodedCommit = zlib_decode($rawCommit);
+                    if ($decodedCommit && preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
+                        return (int) $matches[1];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+
+        return null;
     }
 }

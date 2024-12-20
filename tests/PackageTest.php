@@ -14,10 +14,13 @@ it('has result with correct secretKey', function () {
     ];
 
     // Мокаем класс гита
-    $this->mock(Git::class, function (MockInterface $mock) use ($gitInfo) {
-        $mock->shouldReceive('getBranchName')->once()->andReturn($gitInfo['branchName']);
-        $mock->shouldReceive('getHash')->once()->andReturn($gitInfo['hash']);
-        $mock->shouldReceive('getCommitDate')->once()->andReturn($gitInfo['date']);
+    $this->mock(Git::class, function (MockInterface $mock) {
+        $mock->shouldReceive('run')->once()->andReturn([
+            'branchName' => 'main',
+            'tag' => 'v1.0.0',
+            'hash' => '9869cc2',
+            'date' => time(),
+        ]);
     });
 
     Config::set('space-healthcheck.secretKey', 'mitrofan');
