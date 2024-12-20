@@ -29,7 +29,7 @@ class Git
 
         try {
             // Получение текущей ветки
-            $headFile = file_get_contents($this->base_path . '/HEAD');
+            $headFile = file_get_contents($this->base_path.'/HEAD');
             preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
             $branch = $matches[1] ?? null;
         } catch (\Throwable) {
@@ -38,7 +38,7 @@ class Git
         // Получение хеша последнего коммита
         try {
             if ($branch) {
-                $branchFile = $this->base_path . '/refs/heads/' . $branch;
+                $branchFile = $this->base_path.'/refs/heads/'.$branch;
                 if (file_exists($branchFile)) {
                     $commitHash = trim(file_get_contents($branchFile));
                 }
@@ -48,10 +48,10 @@ class Git
 
         // Получение последнего тега
         try {
-            $tagsPath = $this->base_path . '/refs/tags';
+            $tagsPath = $this->base_path.'/refs/tags';
             if (is_dir($tagsPath)) {
                 $tags = array_diff(scandir($tagsPath), ['.', '..']);
-                if (!empty($tags)) {
+                if (! empty($tags)) {
                     $tag = end($tags);
                 }
             }
@@ -61,7 +61,7 @@ class Git
         // Получение даты последнего коммита
         try {
             if ($commitHash) {
-                $objectsPath = $this->base_path . '/objects/' . substr($commitHash, 0, 2) . '/' . substr($commitHash, 2);
+                $objectsPath = $this->base_path.'/objects/'.substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
                 if (file_exists($objectsPath)) {
                     $rawCommit = file_get_contents($objectsPath);
                     if ($rawCommit) {
