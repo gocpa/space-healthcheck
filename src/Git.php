@@ -8,14 +8,14 @@ use Exception;
 
 class Git
 {
-    private string $base_path;
+    private string $basePath;
 
     /**
      * @throws Exception
      */
     public function __construct()
     {
-        $this->base_path = $this->getBasePath();
+        $this->basePath = $this->getBasePath();
     }
 
     /**
@@ -23,56 +23,10 @@ class Git
      */
     public function run(): array
     {
-        $branch = null;
-        $commitHash = null;
-        $commitDate = null;
-
-        try {
-            // Получение текущей ветки
-            $headFile = file_get_contents($this->base_path.'/HEAD');
-            if ($headFile) {
-                preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
-                $branch = $matches[1] ?? null;
-            }
-        } catch (\Throwable) {
-        }
-
-        // Получение хеша последнего коммита
-        try {
-            if ($branch) {
-                $branchFile = $this->base_path.'/refs/heads/'.$branch;
-                if (file_exists($branchFile)) {
-                    /** @var string $branchFileContent */
-                    $branchFileContent = file_get_contents($branchFile);
-                    $commitHash = trim($branchFileContent);
-                }
-            }
-        } catch (\Throwable) {
-        }
-
-        // Получение даты последнего коммита
-        try {
-            if ($commitHash) {
-                $objectsPath = $this->base_path.'/objects/'.substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
-                if (file_exists($objectsPath)) {
-                    $rawCommit = file_get_contents($objectsPath);
-                    if ($rawCommit) {
-                        $decodedCommit = zlib_decode($rawCommit);
-                        if ($decodedCommit) {
-                            if (preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
-                                $commitDate = $matches[1];
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (\Throwable) {
-        }
-
         return [
-            'branchName' => $branch,
-            'hash' => $commitHash,
-            'date' => $commitDate,
+            'branchName' => $branch = $this->getCurrentBranch(),
+            'hash' => $commitHash = $this->getLatestCommitHash($branch),
+            'date' => $commitHash ? $this->getCommitDate($commitHash) : null,
         ];
     }
 
@@ -81,10 +35,59 @@ class Git
      */
     private function getBasePath(): string
     {
-        if (! is_dir($basePath = base_path('.git/'))) {
+        $basePath = base_path('.git/');
+        if (!is_dir($basePath)) {
             throw new Exception('git not found');
         }
-
         return rtrim($basePath, '/');
+    }
+
+    private function getCurrentBranch(): ?string
+    {
+        try {
+            $headFileContent = @file_get_contents("{$this->basePath}/HEAD");
+            if ($headFileContent && preg_match('/ref: refs\/heads\/(.*)/', $headFileContent, $matches)) {
+                return $matches[1] ?? null;
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+        return null;
+    }
+
+    private function getLatestCommitHash($branch): ?string
+    {
+        if (!$branch) {
+            return null;
+        }
+
+        try {
+            $branchFile = "{$this->basePath}/refs/heads/{$branch}";
+            if (file_exists($branchFile)) {
+                return trim(file_get_contents($branchFile)) ?: null;
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+        return null;
+    }
+
+    private function getCommitDate(string $commitHash): ?string
+    {
+        try {
+            $objectsPath = "{$this->basePath}/objects/" . substr($commitHash, 0, 2) . '/' . substr($commitHash, 2);
+            if (file_exists($objectsPath)) {
+                $rawCommit = file_get_contents($objectsPath);
+                if ($rawCommit) {
+                    $decodedCommit = zlib_decode($rawCommit);
+                    if ($decodedCommit && preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
+                        return $matches[1];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+        return null;
     }
 }
