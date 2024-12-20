@@ -19,7 +19,7 @@ class Git
     }
 
     /**
-     * @return array{"branchName": ?string, "hash": ?string, "date": ?numeric-string}
+     * @return array{"branchName": ?string, "hash": ?string, "date": ?int}
      */
     public function run(): array
     {
@@ -48,7 +48,7 @@ class Git
         try {
             $headFileContent = @file_get_contents("{$this->basePath}/HEAD");
             if ($headFileContent && preg_match('/ref: refs\/heads\/(.*)/', $headFileContent, $matches)) {
-                return $matches[1] ?? null;
+                return $matches[1];
             }
         } catch (\Throwable $e) {
             // Log error if necessary
@@ -57,7 +57,7 @@ class Git
         return null;
     }
 
-    private function getLatestCommitHash($branch): ?string
+    private function getLatestCommitHash(?string $branch): ?string
     {
         if (! $branch) {
             return null;
@@ -66,7 +66,7 @@ class Git
         try {
             $branchFile = "{$this->basePath}/refs/heads/{$branch}";
             if (file_exists($branchFile)) {
-                return trim(file_get_contents($branchFile)) ?: null;
+                return trim((string) file_get_contents($branchFile)) ?: null;
             }
         } catch (\Throwable $e) {
             // Log error if necessary
@@ -75,7 +75,7 @@ class Git
         return null;
     }
 
-    private function getCommitDate(string $commitHash): ?string
+    private function getCommitDate(string $commitHash): ?int
     {
         try {
             $objectsPath = "{$this->basePath}/objects/".substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
@@ -84,7 +84,7 @@ class Git
                 if ($rawCommit) {
                     $decodedCommit = zlib_decode($rawCommit);
                     if ($decodedCommit && preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
-                        return $matches[1];
+                        return (int) $matches[1];
                     }
                 }
             }
