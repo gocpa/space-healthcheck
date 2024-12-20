@@ -18,27 +18,69 @@ class Git
     public function __construct()
     {
         $this->base_path = $this->getBasePath();
-        $this->head = $this->getHeadFileContents();
     }
 
-    public function getBranchName(): string
+    public function run(): array
     {
-        return rtrim((string) preg_replace("/(.*?\/){2}/", '', $this->head));
-    }
+        $branch = null;
+        $commitHash = null;
+        $tag = null;
+        $commitDate = null;
 
-    public function getHash(): string
-    {
-        return trim((string) file_get_contents(sprintf($this->base_path.$this->head)));
-    }
-
-    public function getCommitDate(string $branchName): int|false
-    {
-        $pathBranch = sprintf('%s/refs/heads/%s', $this->base_path, $branchName);
-        if (! is_file($pathBranch)) {
-            return false;
+        try {
+            // Получение текущей ветки
+            $headFile = file_get_contents($this->base_path . '/HEAD');
+            preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
+            $branch = $matches[1] ?? null;
+        } catch (\Throwable) {
         }
 
-        return filemtime($pathBranch);
+        // Получение хеша последнего коммита
+        try {
+            if ($branch) {
+                $branchFile = $this->base_path . '/refs/heads/' . $branch;
+                if (file_exists($branchFile)) {
+                    $commitHash = trim(file_get_contents($branchFile));
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        // Получение последнего тега
+        try {
+            $tagsPath = $this->base_path . '/refs/tags';
+            if (is_dir($tagsPath)) {
+                $tags = array_diff(scandir($tagsPath), ['.', '..']);
+                if (!empty($tags)) {
+                    $tag = end($tags);
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        // Получение даты последнего коммита
+        try {
+            if ($commitHash) {
+                $objectsPath = $this->base_path . '/objects/' . substr($commitHash, 0, 2) . '/' . substr($commitHash, 2);
+                if (file_exists($objectsPath)) {
+                    $rawCommit = file_get_contents($objectsPath);
+                    if ($rawCommit) {
+                        $decodedCommit = zlib_decode($rawCommit);
+                        if (preg_match('/committer .*? (\d+) /', $decodedCommit, $matches)) {
+                            $commitDate = $matches[1] ?? -1;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        return [
+            'branchName' => $branch,
+            'tag' => $tag,
+            'hash' => $commitHash,
+            'date' => $commitDate,
+        ];
     }
 
     /**
@@ -50,11 +92,6 @@ class Git
             throw new Exception('git not found');
         }
 
-        return $basePath;
-    }
-
-    private function getHeadFileContents(): string
-    {
-        return trim(substr((string) file_get_contents($this->base_path.'HEAD'), 4));
+        return rtrim($basePath, '/');
     }
 }

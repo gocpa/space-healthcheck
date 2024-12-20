@@ -39,17 +39,7 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,string|null> */
     private function getGitInfo(): array
     {
-        $git = app(Git::class);
-
-        $branchName = $git->getBranchName();
-        $hash = $git->getHash();
-        $date = $git->getCommitDate($branchName);
-
-        return [
-            'branchName' => $branchName,
-            'hash' => $hash,
-            'date' => $date,
-        ];
+        return app(Git::class)->run();
     }
 
     /** @return array<string,string|null> */
