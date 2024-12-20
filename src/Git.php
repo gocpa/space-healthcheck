@@ -40,7 +40,7 @@ class Git
         // Получение хеша последнего коммита
         try {
             if ($branch) {
-                $branchFile = $this->base_path . '/refs/heads/' . $branch;
+                $branchFile = $this->base_path.'/refs/heads/'.$branch;
                 if (file_exists($branchFile)) {
                     /** @var string $branchFileContent */
                     $branchFileContent = file_get_contents($branchFile);
@@ -53,7 +53,7 @@ class Git
         // Получение даты последнего коммита
         try {
             if ($commitHash) {
-                $objectsPath = $this->base_path . '/objects/' . substr($commitHash, 0, 2) . '/' . substr($commitHash, 2);
+                $objectsPath = $this->base_path.'/objects/'.substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
                 if (file_exists($objectsPath)) {
                     $rawCommit = file_get_contents($objectsPath);
                     if ($rawCommit) {

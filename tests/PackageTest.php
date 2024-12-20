@@ -14,7 +14,7 @@ it('has result with correct secretKey', function () {
     ];
 
     // Мокаем класс гита
-    $this->mock(Git::class, function (MockInterface $mock) use ($gitInfo) {
+    $this->mock(Git::class, function (MockInterface $mock) {
         $mock->shouldReceive('run')->once()->andReturn([
             'branchName' => 'main',
             'tag' => 'v1.0.0',
