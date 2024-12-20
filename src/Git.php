@@ -36,9 +36,10 @@ class Git
     private function getBasePath(): string
     {
         $basePath = base_path('.git/');
-        if (!is_dir($basePath)) {
+        if (! is_dir($basePath)) {
             throw new Exception('git not found');
         }
+
         return rtrim($basePath, '/');
     }
 
@@ -52,12 +53,13 @@ class Git
         } catch (\Throwable $e) {
             // Log error if necessary
         }
+
         return null;
     }
 
     private function getLatestCommitHash($branch): ?string
     {
-        if (!$branch) {
+        if (! $branch) {
             return null;
         }
 
@@ -69,13 +71,14 @@ class Git
         } catch (\Throwable $e) {
             // Log error if necessary
         }
+
         return null;
     }
 
     private function getCommitDate(string $commitHash): ?string
     {
         try {
-            $objectsPath = "{$this->basePath}/objects/" . substr($commitHash, 0, 2) . '/' . substr($commitHash, 2);
+            $objectsPath = "{$this->basePath}/objects/".substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
             if (file_exists($objectsPath)) {
                 $rawCommit = file_get_contents($objectsPath);
                 if ($rawCommit) {
@@ -88,6 +91,7 @@ class Git
         } catch (\Throwable $e) {
             // Log error if necessary
         }
+
         return null;
     }
 }
