@@ -29,7 +29,7 @@ class Git
 
         try {
             // Получение текущей ветки
-            $headFile = file_get_contents($this->base_path . '/HEAD');
+            $headFile = file_get_contents($this->base_path.'/HEAD');
             if ($headFile) {
                 preg_match('/ref: refs\/heads\/(.*)/', $headFile, $matches);
                 $branch = $matches[1] ?? null;
