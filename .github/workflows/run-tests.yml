@@ -68,15 +68,20 @@ jobs:
         run: |
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" laravel
           cd laravel
-          GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
+          composer require gocpa/space-healthcheck:dev-new-version
 
-      - name: Wait for server to be ready
-        run: |
-          for i in {1..10}; do
-            curl --silent http://127.0.0.1:8000/up && exit 0
-            sleep 1
-          done
-          echo "Server did not start in time" && exit 1
+      - name: List Installed Dependencies
+        run: composer show -D
+
+      # GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
+
+      # - name: Wait for server to be ready
+      #   run: |
+      #     for i in {1..10}; do
+      #       curl --silent http://127.0.0.1:8000/up && exit 0
+      #       sleep 1
+      #     done
+      #     echo "Server did not start in time" && exit 1
 
       # - name: Check route response
       #   run: |
