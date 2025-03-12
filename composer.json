@@ -2,12 +2,12 @@
     "name": "gocpa/space-healthcheck",
     "description": "Package for GoCPA.space healthcheck integration",
     "keywords": [
-        "gocpa",
+        "GoCPA",
         "laravel",
         "space-healthcheck"
     ],
     "homepage": "https://github.com/gocpa/space-healthcheck",
-    "license": "proprietary",
+    "license": "MIT",
     "authors": [
         {
             "name": "Tony V",
@@ -16,7 +16,7 @@
         }
     ],
     "require": {
-        "php": "^8.1||^8.2||^8.3||^8.4",
+        "php": "^8.4",
         "spatie/laravel-package-tools": "^1.16",
         "illuminate/contracts": "^10.0||^11.0||^12.0"
     },
@@ -33,13 +33,10 @@
         "phpstan/phpstan-phpunit": "^1.3||^2.0",
         "spatie/laravel-ray": "^1.35"
     },
-    "suggest": {
-        "spatie/laravel-health": "Monitor the health of a Laravel application"
-    },
     "autoload": {
         "psr-4": {
             "GoCPA\\SpaceHealthcheck\\": "src/",
-            "GoCPA\\SpaceHealthcheck\\Database\\Factories\\" : "database/factories/"
+            "GoCPA\\SpaceHealthcheck\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
@@ -67,7 +64,10 @@
         "laravel": {
             "providers": [
                 "GoCPA\\SpaceHealthcheck\\SpaceHealthcheckServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "SpaceHealthcheck": "GoCPA\\SpaceHealthcheck\\Facades\\SpaceHealthcheck"
+            }
         }
     },
     "minimum-stability": "dev",
