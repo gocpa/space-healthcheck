@@ -20,7 +20,7 @@ class EnsureSecretKeyIsValid
     {
         $secret = Config::get('space-healthcheck.secretKey');
         abort_if(empty($secret), 403, 'No secret key set. Please set GOCPASPACE_HEALTHCHECK_SECRET in .env file.');
-        abort_if($request->header('x-space-secret-key') !== $secret, 404);
+        abort_if($request->header('x-space-secret-key') !== $secret, 404, 'Invalid secret key!');
 
         return $next($request);
     }
