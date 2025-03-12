@@ -13,6 +13,8 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
+    env:
+      GOCPASPACE_HEALTHCHECK_SECRET: secret
     strategy:
       fail-fast: true
       matrix:
@@ -69,8 +71,7 @@ jobs:
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" laravel
           cd laravel
           composer require gocpa/space-healthcheck:dev-new-version
-          composer show -D
-          GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
+          php artisan serve --host=127.0.0.1 --port=8000 &
           for i in {1..10}; do
             curl --silent http://127.0.0.1:8000/up && exit 0
             sleep 1
