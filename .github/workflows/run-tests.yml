@@ -101,7 +101,9 @@ jobs:
           composer require gocpa/space-healthcheck:dev-new-version
 
       - name: Run Laravel Server
-        run: php artisan serve > /dev/null 2>&1 &
+        run: |
+          cd laravel
+          php artisan serve > /dev/null 2>&1 &
 
       - name: Check route response
         run: |
