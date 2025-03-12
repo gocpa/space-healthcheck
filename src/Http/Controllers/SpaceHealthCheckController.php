@@ -10,6 +10,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
+use Spatie\Health\ResultStores\ResultStore;
 
 class SpaceHealthCheckController extends Controller
 {
@@ -95,16 +96,8 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,int|null> */
     private function getHealthData(): ?array
     {
-        if (class_exists('\Spatie\Health\ResultStores\ResultStore') === false) {
-            return null;
-        }
-
-        if (class_exists('\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults') === false) {
-            return null;
-        }
-
         /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
-        $resultStore = app('\Spatie\Health\ResultStores\ResultStore');
+        $resultStore = app(ResultStore::class);
 
         /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
         $latestResults = $resultStore->latestResults();
@@ -115,6 +108,7 @@ class SpaceHealthCheckController extends Controller
 
         $json = $latestResults->toJson();
 
+        /** @var array<string, int|null> $result */
         $result = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
