@@ -59,5 +59,26 @@ jobs:
       - name: List Installed Dependencies
         run: composer show -D
 
+      - name: Start Laravel server
+        run: GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..10}; do
+            curl --silent http://127.0.0.1:8000/health-check && exit 0
+            sleep 1
+          done
+          echo "Server did not start in time" && exit 1
+
       - name: Execute tests
         run: vendor/bin/pest --ci
+
+      - name: Check route response
+        run: |
+          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null --header "accept: application/json"--header "x-space-secret-key: secret" http://127.0.0.1:8000/space/check)
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "Route is not accessible"
+            exit 1
+          fi
+          echo "Route is accessible"
+
