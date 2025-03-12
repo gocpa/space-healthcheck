@@ -93,8 +93,7 @@ jobs:
         run: |
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
           composer require spatie/laravel-health gocpa/space-healthcheck:dev-new-version
-          php artisan vendor:publish --tag="health-migrations"
-          php artisan migrate
+          echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
           git config --global init.defaultBranch master
           git config --global user.email "you@example.com"
           git config --global user.name "Your Name"
