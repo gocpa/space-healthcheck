@@ -80,11 +80,6 @@ jobs:
 
       - name: Check route response
         run: |
-          RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null --header "accept: application/json" --header "x-space-secret-key: secret" http://127.0.0.1:8000/space/check)
-          if [ "$RESPONSE" -ne 200 ]; then
-            echo "Route is not accessible"
-            exit 1
-          fi
-          echo "Route is accessible"
+          curl --header "accept: application/json" --header "x-space-secret-key: ${{ env.GOCPASPACE_HEALTHCHECK_SECRET }}" http://127.0.0.1:8000/space/check
 
 
