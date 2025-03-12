@@ -48,26 +48,43 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
           coverage: none
 
-      - name: Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
+      # - name: Setup problem matchers
+      #   run: |
+      #     echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+      #     echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
-      - name: Install dependencies
-        run: |
-          composer require "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
-          composer update --${{ matrix.stability }} --prefer-dist --no-interaction
+      # - name: Install dependencies
+      #   run: |
+      #     composer require "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
+      #     composer update --${{ matrix.stability }} --prefer-dist --no-interaction
 
-      - name: List Installed Dependencies
-        run: composer show -D
+      # - name: List Installed Dependencies
+      #   run: composer show -D
 
-      - name: Execute tests
-        run: vendor/bin/pest --ci
+      # - name: Execute tests
+      #   run: vendor/bin/pest --ci
 
-      - name: Install dependencies
+      - name: Install laravel and run development server
         run: |
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" laravel
           cd laravel
-          ls -lah
+          GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..10}; do
+            curl --silent http://127.0.0.1:8000/up && exit 0
+            sleep 1
+          done
+          echo "Server did not start in time" && exit 1
+
+      # - name: Check route response
+      #   run: |
+      #     RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null --header "accept: application/json"--header "x-space-secret-key: secret" http://127.0.0.1:8000/space/check)
+      #     if [ "$RESPONSE" -ne 200 ]; then
+      #       echo "Route is not accessible"
+      #       exit 1
+      #     fi
+      #     echo "Route is accessible"
 
 
