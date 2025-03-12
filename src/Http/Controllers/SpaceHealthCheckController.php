@@ -22,14 +22,18 @@ class SpaceHealthCheckController extends Controller
     public function __invoke(): JsonResponse
     {
         $result = [];
-        $result['generatedAt'] = now()->timestamp;
-        $result['git'] = $this->getGitInfo();
-        $result['composer'] = $this->getComposerInfo();
-        $result['health'] = $this->getHealthData();
-        $result['environment'] = config('app.env');
-        $result['name'] = config('app.name');
-        $result['env'] = config('app.env');
-        $result['debug'] = config('app.debug');
+        try {
+            $result['generatedAt'] = now()->timestamp;
+            $result['git'] = $this->getGitInfo();
+            $result['composer'] = $this->getComposerInfo();
+            $result['health'] = $this->getHealthData();
+            $result['environment'] = config('app.env');
+            $result['name'] = config('app.name');
+            $result['env'] = config('app.env');
+            $result['debug'] = config('app.debug');
+        } catch (\Throwable $th) {
+            $result['exception'] = $th->getMessage();
+        }
 
         return new JsonResponse($result);
     }
@@ -40,7 +44,9 @@ class SpaceHealthCheckController extends Controller
         try {
             return app(Git::class)->run();
         } catch (\Throwable $th) {
-            return [];
+            return [
+                'exception' => $th->getMessage(),
+            ];
         }
     }
 
@@ -50,14 +56,22 @@ class SpaceHealthCheckController extends Controller
         $packages = [
             'barryvdh/laravel-debugbar',
             'barryvdh/laravel-ide-helper',
+            'gocpa/laravel-request-time-logger',
             'gocpa/space-healthcheck',
             'gocpa/vulnerability-scanner-honeypot',
+            'larastan/larastan',
             'laravel/framework',
             'laravel/horizon',
+            'laravel/pail',
             'laravel/pint',
             'laravel/pulse',
             'laravel/telescope',
+            'msamgan/laravel-env-keys-checker',
+            'nunomaduro/larastan',
+            'opcodesio/log-viewer',
+            'sentry/sentry-laravel',
             'spatie/laravel-health',
+            'tightenco/duster',
         ];
 
         $composerInfo = [];
@@ -90,7 +104,7 @@ class SpaceHealthCheckController extends Controller
         }
 
         /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
-        $resultStore = app('Spatie\Health\ResultStores\ResultStore');
+        $resultStore = app('\Spatie\Health\ResultStores\ResultStore');
 
         /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
         $latestResults = $resultStore->latestResults();
