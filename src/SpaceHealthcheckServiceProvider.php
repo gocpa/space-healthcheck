@@ -4,33 +4,21 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck;
 
-use Illuminate\Support\ServiceProvider;
+use Spatie\LaravelPackageTools\Package;
+use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-final class SpaceHealthcheckServiceProvider extends ServiceProvider
+class SpaceHealthcheckServiceProvider extends PackageServiceProvider
 {
-    /**
-     * Bootstrap the application services.
-     *
-     * @return void
-     */
-    public function boot()
+    public function configurePackage(Package $package): void
     {
-        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
-        $this->publishes(
-            paths: [
-                __DIR__.'/../config/space-healthcheck.php' => config_path('space-healthcheck.php'),
-            ],
-            groups: 'config'
-        );
-    }
-
-    /**
-     * Register the application services.
-     *
-     * @return void
-     */
-    public function register()
-    {
-        $this->mergeConfigFrom(__DIR__.'/../config/space-healthcheck.php', 'space-healthcheck');
+        /*
+         * This class is a Package Service Provider
+         *
+         * More info: https://github.com/spatie/laravel-package-tools
+         */
+        $package
+            ->name('space-healthcheck')
+            ->hasConfigFile('space-healthcheck')
+            ->hasRoute('web');
     }
 }

@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
 use GoCPA\SpaceHealthcheck\Git;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
-use stdClass;
 
 class SpaceHealthCheckController extends Controller
 {
@@ -50,13 +48,10 @@ class SpaceHealthCheckController extends Controller
             'barryvdh/laravel-ide-helper',
             'gocpa/space-healthcheck',
             'gocpa/vulnerability-scanner-honeypot',
-            'laravel/breeze',
             'laravel/framework',
             'laravel/horizon',
             'laravel/pint',
-            'laravel/prompts',
             'laravel/pulse',
-            'laravel/sanctum',
             'laravel/telescope',
             'spatie/laravel-health',
         ];
@@ -82,22 +77,33 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,int|null> */
     private function getHealthData(): ?array
     {
-        try {
-            $resultStore = app('Spatie\Health\ResultStores\ResultStore');
-
-            /** @var stdClass|null */
-            $latestResults = $resultStore->latestResults();
-
-            $finishedAt = $latestResults?->finishedAt->getTimestamp() ?? null;
-            /** @var array<int,array<string,mixed>> $checkResults */
-            $checkResults = $latestResults?->storedCheckResults->map(fn ($line) => $line->toArray())->toArray() ?? null;
-
-            return [
-                'finishedAt' => $finishedAt,
-                'checkResults' => $checkResults,
-            ];
-        } catch (BindingResolutionException) {
+        if (class_exists('\Spatie\Health\ResultStores\ResultStore') === false) {
             return null;
         }
+
+        if (class_exists('\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults') === false) {
+            return null;
+        }
+
+        /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
+        $resultStore = app('Spatie\Health\ResultStores\ResultStore');
+
+
+        /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
+        $latestResults = $resultStore->latestResults();
+
+        if (is_null($latestResults)) {
+            return null;
+        }
+
+        $json = $latestResults->toJson();
+
+        $result = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        return $result;
     }
 }
