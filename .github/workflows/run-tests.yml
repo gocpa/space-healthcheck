@@ -69,9 +69,8 @@ jobs:
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" laravel
           cd laravel
           composer require gocpa/space-healthcheck:dev-new-version
+          composer show -D
 
-      - name: List Installed Dependencies
-        run: composer show -D
 
       # GOCPASPACE_HEALTHCHECK_SECRET=secret php artisan serve --host=127.0.0.1 --port=8000 &
 
