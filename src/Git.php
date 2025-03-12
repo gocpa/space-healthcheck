@@ -23,15 +23,11 @@ class Git
      */
     public function run(): array
     {
-        try {
-            return [
-                'branchName' => $branch = $this->getCurrentBranch(),
-                'hash' => $commitHash = $this->getLatestCommitHash($branch),
-                'date' => $commitHash ? $this->getCommitDate($commitHash) : null,
-            ];
-        } catch (\Throwable $th) {
-            return [];
-        }
+        return [
+            'branchName' => $branch = $this->getCurrentBranch(),
+            'hash' => $commitHash = $this->getLatestCommitHash($branch),
+            'date' => $commitHash ? $this->getCommitDate($commitHash) : null,
+        ];
     }
 
     /**

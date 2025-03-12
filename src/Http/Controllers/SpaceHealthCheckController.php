@@ -37,7 +37,11 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,string|null> */
     private function getGitInfo(): array
     {
-        return app(Git::class)->run();
+        try {
+            return app(Git::class)->run();
+        } catch (\Throwable $th) {
+            return [];
+        }
     }
 
     /** @return array<string,string|null> */
