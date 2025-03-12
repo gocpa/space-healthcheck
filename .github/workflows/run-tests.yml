@@ -89,10 +89,15 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
           coverage: none
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+
       - name: Install laravel and create temporary repository
         run: |
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
-          composer require spatie/laravel-health gocpa/space-healthcheck:dev-new-version
+          composer require spatie/laravel-health gocpa/space-healthcheck:dev-${{ steps.extract_branch.outputs.branch }}
           echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
           echo "<?php namespace App\Providers; class AppServiceProvider extends \Illuminate\Support\ServiceProvider { public function boot(): void { \Spatie\Health\Facades\Health::checks([\Spatie\Health\Checks\Checks\DebugModeCheck::new()]); } }" > app/Providers/AppServiceProvider.php
           git config --global init.defaultBranch master
