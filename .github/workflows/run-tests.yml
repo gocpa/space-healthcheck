@@ -69,23 +69,16 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php: [8.4]
-        # php: [8.4, 8.3, 8.1]
-        laravel: [12]
-        # laravel: [12, 11, 10]
-        include:
+        php: [8.4, 8.3, 8.1]
+        laravel: [12, 11, 10]
+        exclude:
+          - laravel: 10
+            php: 8.4
+          - laravel: 11
+            php: 8.1
           - laravel: 12
-            testbench: 10.*
-          # - laravel: 11.*
-          #   testbench: 9.*
-          # - laravel: 10.*
-          #   testbench: 8.*
-        # exclude:
-        #   - laravel: 12.*
-        #     php: 8.1
-        #   - laravel: 11.*
-        #     php: 8.1
-    name: P${{ matrix.php }} - L${{ matrix.laravel }}
+            php: 8.1
+    name: "Laravel ${{ matrix.laravel }} on PHP${{ matrix.php }}"
     steps:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -96,13 +89,11 @@ jobs:
 
       - name: Install laravel and run development server
         run: |
-          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" laravel
-          cd laravel
+          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
           composer require gocpa/space-healthcheck:dev-new-version
 
       - name: Run Laravel Server
         run: |
-          cd laravel
           php artisan serve --host=127.0.0.1 --port=8000 &
           for i in {1..10}; do
             curl --silent http://127.0.0.1:8000/up && exit 0
