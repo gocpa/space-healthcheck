@@ -94,9 +94,7 @@ jobs:
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
           composer require spatie/laravel-health gocpa/space-healthcheck:dev-new-version
           echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
-          # echo "<?php namespace App\Providers; class HealthServiceProvider extends \Illuminate\Support\ServiceProvider { public function boot(): void { \Spatie\Health\Facades\Health::checks([\Spatie\Health\Checks\Checks\DebugModeCheck::new()]); } }" > app/Providers/HealthServiceProvider.php
-          cat app/Providers/AppServiceProvider.php
-          exit 1
+          echo "<?php namespace App\Providers; class AppServiceProvider extends \Illuminate\Support\ServiceProvider { public function boot(): void { \Spatie\Health\Facades\Health::checks([\Spatie\Health\Checks\Checks\DebugModeCheck::new()]); } }" > app/Providers/AppServiceProvider.php
           git config --global init.defaultBranch master
           git config --global user.email "you@example.com"
           git config --global user.name "Your Name"
