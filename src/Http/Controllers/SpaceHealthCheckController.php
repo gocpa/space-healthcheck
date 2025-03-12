@@ -88,7 +88,6 @@ class SpaceHealthCheckController extends Controller
         /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
         $resultStore = app('Spatie\Health\ResultStores\ResultStore');
 
-
         /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
         $latestResults = $resultStore->latestResults();
 
