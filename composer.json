@@ -68,10 +68,7 @@
         "laravel": {
             "providers": [
                 "GoCPA\\SpaceHealthcheck\\SpaceHealthcheckServiceProvider"
-            ],
-            "aliases": {
-                "SpaceHealthcheck": "GoCPA\\SpaceHealthcheck\\Facades\\SpaceHealthcheck"
-            }
+            ]
         }
     },
     "minimum-stability": "dev",
