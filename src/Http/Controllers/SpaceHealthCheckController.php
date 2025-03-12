@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
 use GoCPA\SpaceHealthcheck\Git;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
-use stdClass;
+use Spatie\Health\ResultStores\ResultStore;
 
 class SpaceHealthCheckController extends Controller
 {
@@ -24,14 +23,18 @@ class SpaceHealthCheckController extends Controller
     public function __invoke(): JsonResponse
     {
         $result = [];
-        $result['generatedAt'] = now()->timestamp;
-        $result['git'] = $this->getGitInfo();
-        $result['composer'] = $this->getComposerInfo();
-        $result['health'] = $this->getHealthData();
-        $result['environment'] = config('app.env');
-        $result['name'] = config('app.name');
-        $result['env'] = config('app.env');
-        $result['debug'] = config('app.debug');
+        try {
+            $result['generatedAt'] = now()->timestamp;
+            $result['git'] = $this->getGitInfo();
+            $result['composer'] = $this->getComposerInfo();
+            $result['health'] = $this->getHealthData();
+            $result['environment'] = config('app.env');
+            $result['name'] = config('app.name');
+            $result['env'] = config('app.env');
+            $result['debug'] = config('app.debug');
+        } catch (\Throwable $th) {
+            $result['exception'] = $th->getMessage();
+        }
 
         return new JsonResponse($result);
     }
@@ -39,7 +42,13 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,string|null> */
     private function getGitInfo(): array
     {
-        return app(Git::class)->run();
+        try {
+            return app(Git::class)->run();
+        } catch (\Throwable $th) {
+            return [
+                'exception' => $th->getMessage(),
+            ];
+        }
     }
 
     /** @return array<string,string|null> */
@@ -48,17 +57,22 @@ class SpaceHealthCheckController extends Controller
         $packages = [
             'barryvdh/laravel-debugbar',
             'barryvdh/laravel-ide-helper',
+            'gocpa/laravel-request-time-logger',
             'gocpa/space-healthcheck',
             'gocpa/vulnerability-scanner-honeypot',
-            'laravel/breeze',
+            'larastan/larastan',
             'laravel/framework',
             'laravel/horizon',
+            'laravel/pail',
             'laravel/pint',
-            'laravel/prompts',
             'laravel/pulse',
-            'laravel/sanctum',
             'laravel/telescope',
+            'msamgan/laravel-env-keys-checker',
+            'nunomaduro/larastan',
+            'opcodesio/log-viewer',
+            'sentry/sentry-laravel',
             'spatie/laravel-health',
+            'tightenco/duster',
         ];
 
         $composerInfo = [];
@@ -82,22 +96,25 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,int|null> */
     private function getHealthData(): ?array
     {
-        try {
-            $resultStore = app('Spatie\Health\ResultStores\ResultStore');
+        /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
+        $resultStore = app(ResultStore::class);
 
-            /** @var stdClass|null */
-            $latestResults = $resultStore->latestResults();
+        /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
+        $latestResults = $resultStore->latestResults();
 
-            $finishedAt = $latestResults?->finishedAt->getTimestamp() ?? null;
-            /** @var array<int,array<string,mixed>> $checkResults */
-            $checkResults = $latestResults?->storedCheckResults->map(fn ($line) => $line->toArray())->toArray() ?? null;
-
-            return [
-                'finishedAt' => $finishedAt,
-                'checkResults' => $checkResults,
-            ];
-        } catch (BindingResolutionException) {
+        if (is_null($latestResults)) {
             return null;
         }
+
+        $json = $latestResults->toJson();
+
+        /** @var array<string, int|null> $result */
+        $result = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        return $result;
     }
 }

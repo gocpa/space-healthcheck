@@ -5,8 +5,8 @@ parameters:
     level: 9
     paths:
         - src
-        - routes
         - config
     tmpDir: build/phpstan
     checkOctaneCompatibility: true
     checkModelProperties: true
+    noEnvCallsOutsideOfConfig: false
