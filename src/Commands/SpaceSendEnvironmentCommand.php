@@ -84,7 +84,12 @@ final class SpaceSendEnvironmentCommand extends Command
 
         $database = [];
         if (array_key_exists($defaultDb, $databases)) {
-            $database = $databases[(string) $defaultDb];
+            $currDb = $databases[$defaultDb];
+            $database['url'] = $currDb['url'];
+            $database['host'] = $currDb['host'];
+            $database['port'] = $currDb['port'];
+            $database['database'] = $currDb['database'];
+            $database['username'] = $currDb['username'];
         }
 
         return [
