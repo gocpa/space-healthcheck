@@ -20,6 +20,7 @@ final class SpaceSendEnvironmentCommand extends Command
 
         if (! $secretKey = config('space-healthcheck.secretKey')) {
             $this->warn('⚠️ Переменная GOCPASPACE_HEALTHCHECK_SECRET не найдена в .env');
+
             return Command::FAILURE;
         }
 
@@ -30,7 +31,8 @@ final class SpaceSendEnvironmentCommand extends Command
 
             return Command::SUCCESS;
         } catch (\Throwable $e) {
-            $this->error('❌ Ошибка при отправке данных: ' . $e->getMessage());
+            $this->error('❌ Ошибка при отправке данных: '.$e->getMessage());
+
             return Command::FAILURE;
         }
 
@@ -77,6 +79,7 @@ final class SpaceSendEnvironmentCommand extends Command
     protected function getDatabaseInfo(): array
     {
         $defaultDb = config('database.default');
+
         return [
             'connection' => [
                 'type' => $defaultDb,
