@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Attribute\AsCommand;
 
@@ -18,29 +19,27 @@ final class SpaceSendEnvironmentCommand extends Command
     {
         $this->components->info('Отправка данных стенда в gocpa.space');
 
-        if (! $secretKey = config('space-healthcheck.secretKey')) {
-            $this->warn('⚠️ Переменная GOCPASPACE_HEALTHCHECK_SECRET не найдена в .env');
-
-            return Command::FAILURE;
-        }
-
         try {
-            $this->sendEnvironmentPayload($secretKey);
+            $this->sendEnvironmentPayload();
             $this->info('✅ Данные успешно отправлены в gocpa.space');
             $this->newLine();
-
-            return Command::SUCCESS;
         } catch (\Throwable $e) {
             $this->error('❌ Ошибка при отправке данных: '.$e->getMessage());
 
             return Command::FAILURE;
         }
 
-        return 0;
+        return Command::SUCCESS;
     }
 
-    protected function sendEnvironmentPayload(string $secretKey): void
+    protected function sendEnvironmentPayload(): void
     {
+        if (! $secretKey = config('space-healthcheck.secretKey')) {
+            $this->warn('⚠️ Переменная GOCPASPACE_HEALTHCHECK_SECRET не найдена в .env');
+
+            return;
+        }
+
         $payload = $this->buildPayload();
 
         Http::acceptJson()
@@ -53,6 +52,7 @@ final class SpaceSendEnvironmentCommand extends Command
             ->throw();
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function buildPayload(): array
     {
         return [
@@ -65,6 +65,7 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getAppInfo(): array
     {
         return [
@@ -75,18 +76,20 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getDatabaseInfo(): array
     {
-        $defaultDb = config('database.default');
+        $defaultDb = Config::string('database.default');
+        $databases = Config::array('database.connections', []);
+
+        $database = [];
+        if (array_key_exists($defaultDb, $databases)) {
+            $database = $databases[(string) $defaultDb];
+        }
 
         return [
-            'connection' => [
-                'type' => $defaultDb,
-                'host' => config('database.connections.'.$defaultDb.'.host'),
-                'port' => config('database.connections.'.$defaultDb.'.port'),
-                'database' => config('database.connections.'.$defaultDb.'.database'),
-                'username' => config('database.connections.'.$defaultDb.'.username'),
-            ],
+            'type' => $defaultDb,
+            'database' => $database,
             'redis' => [
                 'client' => config('database.redis.client'),
                 'host' => config('database.redis.default.host'),
@@ -95,15 +98,18 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getQueueInfo(): array
     {
         $horizon = [];
 
         try {
             $horizon['prefix'] = config('horizon.prefix');
-            $supervisors = config('horizon.defaults', []);
-            $environments = config('horizon.environments.'.config('app.env'), []);
-            $horizon['config'] = array_merge_recursive($supervisors, $environments);
+            $supervisors = Config::array('horizon.defaults', []);
+            $environments = Config::array('horizon.environments', []);
+            $env = Config::string('app.env');
+            $environment = array_key_exists($env, $environments) ? $environments[$env] : [];
+            $horizon['config'] = array_merge_recursive($supervisors, $environment);
         } catch (\Throwable $th) {
             $horizon['th'] = $th->getMessage();
         }
@@ -114,6 +120,7 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getMailInfo(): array
     {
         return [
@@ -123,6 +130,7 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getHealthcheckInfo(): array
     {
         $folder = config('space-healthcheck.folder');
@@ -137,6 +145,7 @@ final class SpaceSendEnvironmentCommand extends Command
         ];
     }
 
+    /** @phpstan-ignore missingType.iterableValue */
     protected function getCloudInfo(): array
     {
         return [
