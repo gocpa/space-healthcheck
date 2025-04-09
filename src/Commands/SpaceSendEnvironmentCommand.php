@@ -42,7 +42,6 @@ final class SpaceSendEnvironmentCommand extends Command
     protected function sendEnvironmentPayload(string $secretKey): void
     {
         $payload = $this->buildPayload();
-        dd($payload);
 
         Http::acceptJson()
             ->withoutVerifying()
