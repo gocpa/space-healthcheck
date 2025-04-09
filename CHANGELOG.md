@@ -2,6 +2,15 @@
 
 All notable changes to `space-healthcheck` will be documented in this file.
 
+## v2.1.0 - 2025-04-09
+
+### What's Changed
+
+* feat: добавлена команда для отправки данных стенда в gocpa.space  by @vaninanton in https://github.com/gocpa/space-healthcheck/pull/29
+* fix: обновлены зависимости by @vaninanton in https://github.com/gocpa/space-healthcheck/pull/30
+
+**Full Changelog**: https://github.com/gocpa/space-healthcheck/compare/v2.0.0...v2.1.0
+
 ## v2.0.0 - 2025-03-12
 
 ### What's Changed
