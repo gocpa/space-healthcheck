@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace GoCPA\SpaceHealthcheck\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use Symfony\Component\Console\Attribute\AsCommand;
 
 #[AsCommand(
@@ -34,7 +34,7 @@ final class SpaceSendEnvironmentCommand extends Command
 
     protected function sendEnvironmentPayload(): void
     {
-        if (! $secretKey = config('space-healthcheck.secretKey')) {
+        if (! $secretKey = self::configString('space-healthcheck.secretKey')) {
             $this->warn('⚠️ Переменная GOCPASPACE_HEALTHCHECK_SECRET не найдена в .env');
 
             return;
@@ -69,36 +69,35 @@ final class SpaceSendEnvironmentCommand extends Command
     protected function getAppInfo(): array
     {
         return [
-            'name' => config('app.name'),
-            'env' => config('app.env'),
-            'url' => config('app.url'),
-            'timezone' => config('app.timezone'),
+            'name' => self::configString('app.name'),
+            'env' => self::configString('app.env'),
+            'url' => self::configString('app.url'),
+            'timezone' => self::configString('app.timezone'),
         ];
     }
 
     /** @phpstan-ignore missingType.iterableValue */
     protected function getDatabaseInfo(): array
     {
-        $defaultDb = Config::string('database.default');
-        $databases = Config::array('database.connections', []);
+        $defaultDb = self::configString('database.default');
+        $databases = self::configArray('database.connections');
 
         $database = [];
         if (array_key_exists($defaultDb, $databases)) {
-            $currDb = $databases[$defaultDb];
-            $database['url'] = $currDb['url'];
-            $database['host'] = $currDb['host'];
-            $database['port'] = $currDb['port'];
-            $database['database'] = $currDb['database'];
-            $database['username'] = $currDb['username'];
+            $database['url'] = self::configString('database.connections.'.$defaultDb.'url');
+            $database['host'] = self::configString('database.connections.'.$defaultDb.'host');
+            $database['port'] = self::configString('database.connections.'.$defaultDb.'port');
+            $database['database'] = self::configString('database.connections.'.$defaultDb.'database');
+            $database['username'] = self::configString('database.connections.'.$defaultDb.'username');
         }
 
         return [
             'type' => $defaultDb,
             'database' => $database,
             'redis' => [
-                'client' => config('database.redis.client'),
-                'host' => config('database.redis.default.host'),
-                'port' => config('database.redis.default.port'),
+                'client' => self::configString('database.redis.client'),
+                'host' => self::configString('database.redis.default.host'),
+                'port' => self::configString('database.redis.default.port'),
             ],
         ];
     }
@@ -109,18 +108,58 @@ final class SpaceSendEnvironmentCommand extends Command
         $horizon = [];
 
         try {
-            $horizon['prefix'] = config('horizon.prefix');
-            $supervisors = Config::array('horizon.defaults', []);
-            $environments = Config::array('horizon.environments', []);
-            $env = Config::string('app.env');
+            $horizon['prefix'] = self::configString('horizon.prefix');
+            /**
+             * @var array{
+             *     defaults: array<
+             *         string, array{
+             *             connection: string,
+             *             queue: list<string>,
+             *             balance: string,
+             *             autoScalingStrategy: string,
+             *             maxProcesses: int,
+             *             maxTime: int,
+             *             maxJobs: int,
+             *             memory: int,
+             *             tries: int,
+             *             timeout: int,
+             *             nice: int
+             *         }
+             *     >
+             * }
+             */
+            $supervisors = self::configArray('horizon.defaults');
+            /**
+             * @var array{
+             *     environments: array<
+             *         string, array<
+             *                 string, array{
+             *                 connection: string,
+             *                 queue: list<string>,
+             *                 balance: string,
+             *                 autoScalingStrategy: string,
+             *                 maxProcesses: int,
+             *                 maxTime: int,
+             *                 maxJobs: int,
+             *                 memory: int,
+             *                 tries: int,
+             *                 timeout: int,
+             *                 nice: int
+             *             }
+             *         >
+             *     >
+             * }
+             */
+            $environments = self::configArray('horizon.environments');
+            $env = self::configString('app.env');
             $environment = array_key_exists($env, $environments) ? $environments[$env] : [];
-            $horizon['config'] = array_merge_recursive($supervisors, $environment);
+            $horizon['config'] = array_replace_recursive($supervisors, $environment);
         } catch (\Throwable $th) {
             $horizon['th'] = $th->getMessage();
         }
 
         return [
-            'driver' => config('queue.default'),
+            'driver' => self::configString('queue.default'),
             'horizon' => $horizon,
         ];
     }
@@ -129,24 +168,24 @@ final class SpaceSendEnvironmentCommand extends Command
     protected function getMailInfo(): array
     {
         return [
-            'mailer' => config('mail.default'),
-            'host' => config('mail.mailers.smtp.host'),
-            'port' => config('mail.mailers.smtp.port'),
+            'mailer' => self::configString('mail.default'),
+            'host' => self::configString('mail.mailers.smtp.host'),
+            'port' => self::configString('mail.mailers.smtp.port'),
         ];
     }
 
     /** @phpstan-ignore missingType.iterableValue */
     protected function getHealthcheckInfo(): array
     {
-        $folder = config('space-healthcheck.folder');
-        if (is_null($folder) && function_exists('base_path')) {
+        $folder = self::configString('space-healthcheck.folder');
+        if (empty($folder) && function_exists('base_path')) {
             $folder = base_path();
         }
 
         return [
-            'projectId' => config('space-healthcheck.projectId'),
+            'projectId' => self::configString('space-healthcheck.projectId'),
             'folder' => $folder,
-            'webserverExtPort' => config('space-healthcheck.webserverExtPort'),
+            'webserverExtPort' => self::configString('space-healthcheck.webserverExtPort'),
         ];
     }
 
@@ -154,8 +193,48 @@ final class SpaceSendEnvironmentCommand extends Command
     protected function getCloudInfo(): array
     {
         return [
-            'GOCPA_PROJECT' => config('app.gocpa_project'),
-            'PROJECT_NAME' => config('app.project_name'),
+            'GOCPA_PROJECT' => self::configString('app.gocpa_project'),
+            'PROJECT_NAME' => self::configString('app.project_name'),
         ];
+    }
+
+    /**
+     * Get the specified array configuration value.
+     *
+     * @param  string  $key
+     * @param  (\Closure():(array<array-key, mixed>|null))|array<array-key, mixed>|null  $default
+     * @return array<array-key, mixed>
+     */
+    public static function configArray(string $key, $default = null): array
+    {
+        $value = config($key, $default);
+
+        if (! is_array($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be an array, %s given.', $key, gettype($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get the specified string configuration value.
+     *
+     * @param  string  $key
+     * @param  (\Closure():(string|null))|string|null  $default
+     * @return string
+     */
+    public static function configString(string $key, $default = null): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be a string, %s given.', $key, gettype($value))
+            );
+        }
+
+        return $value;
     }
 }
