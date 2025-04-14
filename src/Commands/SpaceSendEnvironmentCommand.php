@@ -225,6 +225,9 @@ final class SpaceSendEnvironmentCommand extends Command
     public static function configString(string $key, $default = ''): string
     {
         $value = config($key, $default);
+        if (is_null($value)) {
+            return '';
+        }
 
         if (! is_string($value)) {
             throw new InvalidArgumentException(
