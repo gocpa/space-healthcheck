@@ -225,7 +225,7 @@ final class SpaceSendEnvironmentCommand extends Command
      * @param  (\Closure():(string|null))|string|null  $default
      * @return string
      */
-    public static function configString(string $key, $default = null): string
+    public static function configString(string $key, $default = ''): string
     {
         $value = config($key, $default);
 
