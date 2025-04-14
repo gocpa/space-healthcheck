@@ -2,6 +2,10 @@
 
 All notable changes to `space-healthcheck` will be documented in this file.
 
+## v2.1.2 - 2025-04-14
+
+**Full Changelog**: https://github.com/gocpa/space-healthcheck/compare/v2.1.0...v2.1.2
+
 ## v2.1.1 - 2025-04-11
 
 ### What's Changed
