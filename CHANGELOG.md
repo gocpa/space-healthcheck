@@ -2,6 +2,14 @@
 
 All notable changes to `space-healthcheck` will be documented in this file.
 
+## v2.1.1 - 2025-04-11
+
+### What's Changed
+
+* refactor: заменить вызовы config на статические методы для получения конфигурации - совместимость со старыми версиями laravel by @vaninanton
+
+**Full Changelog**: https://github.com/gocpa/space-healthcheck/compare/v2.0.0...v2.1.1
+
 ## v2.1.0 - 2025-04-09
 
 ### What's Changed

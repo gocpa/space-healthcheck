@@ -201,7 +201,6 @@ final class SpaceSendEnvironmentCommand extends Command
     /**
      * Get the specified array configuration value.
      *
-     * @param  string  $key
      * @param  (\Closure():(array<array-key, mixed>|null))|array<array-key, mixed>|null  $default
      * @return array<array-key, mixed>
      */
@@ -221,9 +220,7 @@ final class SpaceSendEnvironmentCommand extends Command
     /**
      * Get the specified string configuration value.
      *
-     * @param  string  $key
      * @param  (\Closure():(string|null))|string|null  $default
-     * @return string
      */
     public static function configString(string $key, $default = ''): string
     {
