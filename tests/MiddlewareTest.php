@@ -29,7 +29,7 @@ test('middleware возвращает 404 при неправильном клю
     try {
         $middleware = new EnsureSecretKeyIsValid;
         $middleware->handle($request, $next);
-    } catch (\Symfony\Component\HttpKernel\Exception\HttpException $th) {
+    } catch (HttpException $th) {
     }
 
     expect($th)->toBeInstanceOf(NotFoundHttpException::class);
@@ -43,7 +43,7 @@ test('middleware возвращает 403 при пустом ключе', funct
     try {
         $middleware = new EnsureSecretKeyIsValid;
         $middleware->handle($request, $next);
-    } catch (\Symfony\Component\HttpKernel\Exception\HttpException $th) {
+    } catch (HttpException $th) {
     }
 
     expect($th)->toBeInstanceOf(HttpException::class);

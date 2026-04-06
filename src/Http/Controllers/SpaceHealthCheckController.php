@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
+use Composer\InstalledVersions;
 use GoCPA\SpaceHealthcheck\Git;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
@@ -11,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use OutOfBoundsException;
 use Spatie\Health\ResultStores\ResultStore;
+use Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults;
 
 class SpaceHealthCheckController extends Controller
 {
@@ -87,7 +89,7 @@ class SpaceHealthCheckController extends Controller
     private function getInstalledVersion(string $packageName): ?string
     {
         try {
-            return \Composer\InstalledVersions::getVersion($packageName);
+            return InstalledVersions::getVersion($packageName);
         } catch (OutOfBoundsException) {
             return null;
         }
@@ -96,10 +98,10 @@ class SpaceHealthCheckController extends Controller
     /** @return array<string,int|null> */
     private function getHealthData(): ?array
     {
-        /** @var \Spatie\Health\ResultStores\ResultStore $resultStore */
+        /** @var ResultStore $resultStore */
         $resultStore = app(ResultStore::class);
 
-        /** @var ?\Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults $latestResults */
+        /** @var ?StoredCheckResults $latestResults */
         $latestResults = $resultStore->latestResults();
 
         if (is_null($latestResults)) {
