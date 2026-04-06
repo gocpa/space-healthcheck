@@ -39,7 +39,7 @@ class SpaceHealthCheckController extends Controller
         return new JsonResponse($result);
     }
 
-    /** @return array<string,string|null> */
+    /** @return array<string, string|int|null> */
     private function getGitInfo(): array
     {
         try {
