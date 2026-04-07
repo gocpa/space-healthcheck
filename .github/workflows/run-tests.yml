@@ -64,7 +64,8 @@ jobs:
       - name: Install dependencies
         run: |
           composer require --dev "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
-          composer update --${{ matrix.stability }} --prefer-dist --no-interaction
+          # --no-audit: Laravel 10 / PHPUnit 10.5.x в матрице помечены advisory; для проверки совместимости пакета это допустимо
+          composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-audit
 
       - name: List Installed Dependencies
         run: composer show -D
