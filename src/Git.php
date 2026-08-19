@@ -17,6 +17,9 @@ class Git
     /** Ограничитель рекурсии по цепочке дельт: у git глубина по умолчанию 50. */
     private const MAX_DELTA_DEPTH = 50;
 
+    /** Ограничитель обхода цепочки alternates. */
+    private const MAX_OBJECT_DIRECTORIES = 10;
+
     /** Каталог .git текущего рабочего дерева — здесь лежит HEAD. */
     private string $basePath;
 
@@ -25,6 +28,13 @@ class Git
      * Совпадает с basePath везде, кроме git worktree.
      */
     private string $commonPath;
+
+    /**
+     * Каталоги с объектами: свой плюс подключённые через objects/info/alternates.
+     *
+     * @var list<string>|null
+     */
+    private ?array $objectDirectories = null;
 
     /**
      * @throws Exception
@@ -184,19 +194,65 @@ class Git
 
     private function readLooseObject(string $commitHash): ?string
     {
-        $objectPath = "{$this->commonPath}/objects/".substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
-        if (! is_file($objectPath)) {
-            return null;
+        $suffix = '/'.substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
+
+        foreach ($this->objectDirectories() as $directory) {
+            if (! is_file($directory.$suffix)) {
+                continue;
+            }
+
+            $raw = @file_get_contents($directory.$suffix);
+            if ($raw === false || $raw === '') {
+                continue;
+            }
+
+            $decoded = @zlib_decode($raw);
+            if ($decoded !== false) {
+                return $decoded;
+            }
         }
 
-        $raw = @file_get_contents($objectPath);
-        if ($raw === false || $raw === '') {
-            return null;
+        return null;
+    }
+
+    /**
+     * При git clone --shared и --reference своего хранилища объектов нет вообще:
+     * пути к чужим лежат в objects/info/alternates и могут быть вложенными.
+     *
+     * @return list<string>
+     */
+    private function objectDirectories(): array
+    {
+        if ($this->objectDirectories !== null) {
+            return $this->objectDirectories;
         }
 
-        $decoded = @zlib_decode($raw);
+        $directories = [];
+        $queue = ["{$this->commonPath}/objects"];
 
-        return $decoded === false ? null : $decoded;
+        while ($queue !== [] && count($directories) < self::MAX_OBJECT_DIRECTORIES) {
+            $directory = rtrim((string) array_shift($queue), '/');
+
+            if ($directory === '' || in_array($directory, $directories, true) || ! is_dir($directory)) {
+                continue;
+            }
+
+            $directories[] = $directory;
+
+            $alternates = @file_get_contents($directory.'/info/alternates');
+            if ($alternates === false) {
+                continue;
+            }
+
+            foreach (preg_split('/\R/', $alternates) ?: [] as $line) {
+                $line = trim($line);
+                if ($line !== '') {
+                    $queue[] = $this->absolutePath($line, $directory);
+                }
+            }
+        }
+
+        return $this->objectDirectories = $directories;
     }
 
     /**
@@ -206,9 +262,9 @@ class Git
      */
     private function readPackedObject(string $commitHash): ?string
     {
-        $indexes = glob("{$this->commonPath}/objects/pack/*.idx");
-        if ($indexes === false) {
-            return null;
+        $indexes = [];
+        foreach ($this->objectDirectories() as $directory) {
+            $indexes = array_merge($indexes, glob($directory.'/pack/*.idx') ?: []);
         }
 
         $hashLength = intdiv(strlen($commitHash), 2);

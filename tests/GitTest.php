@@ -173,6 +173,24 @@ it('разворачивает дельта-коммиты из packfile', funct
     'REF_DELTA' => ['-c repack.useDeltaBaseOffset=false repack -adf --depth=50 --window=250 -q', 7],
 ]);
 
+it('читает объекты из alternates при clone --shared', function () {
+    git($this->repository, 'gc --quiet --prune=now');
+    $expected = git($this->repository, "log -1 --format='%H %ct'");
+    [$hash, $timestamp] = explode(' ', $expected);
+
+    $shared = $this->repository.'-shared';
+    git($this->repository, 'clone --quiet --shared . '.escapeshellarg($shared));
+
+    // Своего хранилища объектов у такого клона нет — только ссылка на чужое.
+    expect(is_file($shared.'/.git/objects/info/alternates'))->toBeTrue();
+    expect(glob($shared.'/.git/objects/pack/*.pack'))->toBe([]);
+
+    expect(readGit($shared)['date'])->toBe((int) $timestamp);
+    expect(readGit($shared)['hash'])->toBe($hash);
+
+    removeDirectory($shared);
+});
+
 it('читает 8-байтные смещения из .idx', function () {
     // Большие смещения git пишет только для packfile тяжелее 2 ГБ, поэтому
     // собираем .idx с такой таблицей вручную.
