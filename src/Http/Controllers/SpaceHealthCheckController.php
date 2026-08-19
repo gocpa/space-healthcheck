@@ -6,18 +6,12 @@ namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
 use Composer\InstalledVersions;
 use GoCPA\SpaceHealthcheck\Git;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller;
 use OutOfBoundsException;
 use Spatie\Health\ResultStores\ResultStore;
 
-class SpaceHealthCheckController extends Controller
+class SpaceHealthCheckController
 {
-    use AuthorizesRequests;
-    use ValidatesRequests;
-
     /**
      * Выводит результат для мониторинга
      */

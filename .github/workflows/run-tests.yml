@@ -63,7 +63,8 @@ jobs:
       - name: Install dependencies
         run: |
           composer require --dev "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
-          # Матрица с Laravel 10 / старым PHPUnit: Packagist advisory блокирует разрешение, пока audit.block-insecure=true
+          # Старые ветки Laravel остаются под advisory (CVE-2026-48019 закрыт только в 12.60 и 13.10),
+          # поэтому разрешение блокируется, пока audit.block-insecure=true
           composer config audit.block-insecure false
           composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-audit
 
