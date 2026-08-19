@@ -8,6 +8,8 @@ on:
       - 'phpunit.xml.dist'
       - 'composer.json'
       - 'composer.lock'
+  # Вызывается из release-tests.yml, чтобы тег проверялся той же матрицей
+  workflow_call:
 
 jobs:
   test:
@@ -106,10 +108,10 @@ jobs:
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
           coverage: none
 
-      - name: Extract branch name
-        shell: bash
-        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-        id: extract_branch
+      - name: Checkout package
+        uses: actions/checkout@v7
+        with:
+          path: package
 
       - name: Install laravel and create temporary repository
         run: |
@@ -118,8 +120,15 @@ jobs:
           # Ключ переезжал между версиями composer, поэтому ставим оба.
           composer config --global audit.block-insecure false || true
           composer config --global policy.advisories.block false || true
-          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
-          composer require spatie/laravel-health gocpa/space-healthcheck:dev-${{ steps.extract_branch.outputs.branch }}
+          # working-directory тут не поставить: каталог создаёт сам create-project
+          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" app
+          cd app
+          # Пакет ставим из чекаута, а не из Packagist: джоб должен проверять код
+          # этой ветки. Веток dependabot и форков в Packagist нет вовсе, а
+          # индексация отстаёт от пуша. Версия задана явно, чтобы не зависеть
+          # от того, как composer выведет её из detached HEAD.
+          composer config repositories.package --json '{"type":"path","url":"../package","options":{"versions":{"gocpa/space-healthcheck":"dev-ci"}}}'
+          composer require spatie/laravel-health "gocpa/space-healthcheck:dev-ci"
           echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
           echo "<?php namespace App\Providers; class AppServiceProvider extends \Illuminate\Support\ServiceProvider { public function boot(): void { \Spatie\Health\Facades\Health::checks([\Spatie\Health\Checks\Checks\DebugModeCheck::new()]); } }" > app/Providers/AppServiceProvider.php
           git config --global init.defaultBranch master
@@ -132,6 +141,7 @@ jobs:
           php artisan health:check --no-notification
 
       - name: Run Laravel Server
+        working-directory: app
         run: |
           php artisan serve --host=127.0.0.1 --port=8000 &
 
