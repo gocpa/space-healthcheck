@@ -1,0 +1,13 @@
+name: release-tests
+
+# Проверяем тег тем же набором, которым проверяются ветки: релиз публикуется
+# из UI и раньше не прогонялся вообще. prereleased и released покрывают обе
+# кнопки; published не используем, чтобы прогон не запускался дважды.
+on:
+  release:
+    types: [prereleased, released]
+
+jobs:
+  tests:
+    name: tests
+    uses: ./.github/workflows/run-tests.yml
