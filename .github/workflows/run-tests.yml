@@ -143,4 +143,16 @@ jobs:
           echo "::debug::${{ fromJson(steps.testRequest.outputs.response).generatedAt }}"
           echo ${{ steps.testRequest.outputs.response }}
 
+      - name: Assert Response
+        run: |
+          echo '${{ steps.testRequest.outputs.response }}' > response.json
+          jq -e '.exception == null' response.json > /dev/null \
+            || (echo "::error::эндпоинт вернул exception" && jq . response.json && exit 1)
+          for key in generatedAt name env debug git composer; do
+            jq -e "has(\"$key\")" response.json > /dev/null \
+              || (echo "::error::в ответе нет ключа $key" && jq . response.json && exit 1)
+          done
+          jq -e '.git.hash != null and .git.date != null' response.json > /dev/null \
+            || (echo "::error::git-секция не заполнена" && jq .git response.json && exit 1)
+
 
