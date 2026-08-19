@@ -114,14 +114,15 @@ jobs:
           path: package
 
       - name: Install laravel and create temporary repository
-        working-directory: app
         run: |
           # Старые ветки Laravel целиком под advisory (CVE-2026-48019 закрыт только
           # в 12.60 и 13.10), без этого create-project не разрешает зависимости.
           # Ключ переезжал между версиями composer, поэтому ставим оба.
           composer config --global audit.block-insecure false || true
           composer config --global policy.advisories.block false || true
-          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
+          # working-directory тут не поставить: каталог создаёт сам create-project
+          composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" app
+          cd app
           # Пакет ставим из чекаута, а не из Packagist: джоб должен проверять код
           # этой ветки. Веток dependabot и форков в Packagist нет вовсе, а
           # индексация отстаёт от пуша. Версия задана явно, чтобы не зависеть
