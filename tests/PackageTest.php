@@ -15,6 +15,7 @@ beforeEach(function () {
     $this->mock(Git::class, function (MockInterface $mock) {
         $mock->shouldReceive('run')->andReturn([
             'branchName' => 'main',
+            'tag' => 'v2.1.3',
             'hash' => '9869cc2',
             'date' => time(),
         ]);

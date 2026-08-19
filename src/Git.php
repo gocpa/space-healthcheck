@@ -14,6 +14,11 @@ class Git
 
     private const TYPE_REF_DELTA = 7;
 
+    private const TYPE_TAG = 4;
+
+    /** Ограничитель разворачивания цепочки тегов (тег может указывать на тег). */
+    private const MAX_TAG_DEPTH = 5;
+
     /** Ограничитель рекурсии по цепочке дельт: у git глубина по умолчанию 50. */
     private const MAX_DELTA_DEPTH = 50;
 
@@ -46,19 +51,15 @@ class Git
     }
 
     /**
-     * @return array{"branchName": ?string, "hash": ?string, "date": ?int}
+     * @return array{"branchName": ?string, "tag": ?string, "hash": ?string, "date": ?int}
      */
     public function run(): array
     {
         [$branch, $hash] = $this->readHead();
 
-        // В detached HEAD ветки нет, но хеш лежит прямо в HEAD.
-        if ($hash === null && $branch !== null) {
-            $hash = $this->resolveBranch($branch);
-        }
-
         return [
             'branchName' => $branch,
+            'tag' => $hash !== null ? $this->findTag($hash) : null,
             'hash' => $hash,
             'date' => $hash !== null ? $this->getCommitDate($hash) : null,
         ];
@@ -133,8 +134,14 @@ class Git
 
             $head = trim($head);
 
-            if (preg_match('/^ref:\s*refs\/heads\/(.+)$/m', $head, $matches) === 1) {
-                return [trim($matches[1]), null];
+            // В HEAD может стоять ссылка на что угодно из refs/, не только на ветку.
+            if (preg_match('/^ref:\s*(\S+)$/m', $head, $matches) === 1) {
+                $ref = $matches[1];
+                $branch = str_starts_with($ref, 'refs/heads/')
+                    ? substr($ref, strlen('refs/heads/'))
+                    : null;
+
+                return [$branch, $this->resolveRef($ref)];
             }
 
             if ($this->isCommitHash($head)) {
@@ -148,27 +155,25 @@ class Git
     }
 
     /**
-     * Ищет хеш ветки сначала среди loose-ссылок, затем в packed-refs:
+     * Ищет хеш ссылки сначала среди loose-файлов, затем в packed-refs:
      * после git clone / git gc файла refs/heads/<branch> может не быть.
+     * Аннотированный тег разворачивается до коммита.
      */
-    private function resolveBranch(string $branch): ?string
+    private function resolveRef(string $ref): ?string
     {
         try {
-            $branchFile = "{$this->commonPath}/refs/heads/{$branch}";
-            if (is_file($branchFile)) {
-                $hash = trim((string) file_get_contents($branchFile));
+            $refFile = "{$this->commonPath}/{$ref}";
+            if (is_file($refFile)) {
+                $hash = trim((string) file_get_contents($refFile));
                 if ($this->isCommitHash($hash)) {
-                    return $hash;
+                    return $this->peel($hash);
                 }
             }
 
-            $packedRefs = "{$this->commonPath}/packed-refs";
-            if (is_file($packedRefs)) {
-                $content = @file_get_contents($packedRefs);
-                $pattern = '/^([0-9a-f]{40,64})\s+'.preg_quote("refs/heads/{$branch}", '/').'$/m';
-                if ($content !== false && preg_match($pattern, $content, $matches) === 1) {
-                    return $matches[1];
-                }
+            $packedRefs = @file_get_contents("{$this->commonPath}/packed-refs");
+            $pattern = '/^([0-9a-f]{40,64})\s+'.preg_quote($ref, '/').'$/m';
+            if ($packedRefs !== false && preg_match($pattern, $packedRefs, $matches) === 1) {
+                return $this->peel($matches[1]);
             }
         } catch (\Throwable $e) {
             // Log error if necessary
@@ -177,12 +182,133 @@ class Git
         return null;
     }
 
+    /**
+     * Аннотированный тег — отдельный объект, который ссылается на коммит
+     * полем object. Разворачиваем цепочку до самого коммита.
+     */
+    private function peel(string $hash, int $depth = 0): string
+    {
+        if ($depth >= self::MAX_TAG_DEPTH) {
+            return $hash;
+        }
+
+        $object = $this->readObject($hash);
+        if ($object === null || $object['type'] !== self::TYPE_TAG) {
+            return $hash;
+        }
+
+        if (preg_match('/^object ([0-9a-f]{40,64})$/m', $object['data'], $matches) === 1) {
+            return $this->peel($matches[1], $depth + 1);
+        }
+
+        return $hash;
+    }
+
+    /**
+     * Имя тега, указывающего на коммит. Лёгкие теги ссылаются на коммит напрямую,
+     * аннотированные — через tag-объект; в packed-refs развёрнутое значение лежит
+     * следующей строкой после ^. Если тегов несколько, берётся последний в
+     * натуральной сортировке — для vX.Y.Z это самая свежая версия.
+     */
+    private function findTag(string $commitHash): ?string
+    {
+        try {
+            $names = array_merge(
+                $this->findPackedTags($commitHash),
+                $this->findLooseTags($commitHash)
+            );
+
+            if ($names === []) {
+                return null;
+            }
+
+            usort($names, 'strnatcmp');
+
+            return end($names);
+        } catch (\Throwable $e) {
+            // Log error if necessary
+        }
+
+        return null;
+    }
+
+    /** @return list<string> */
+    private function findPackedTags(string $commitHash): array
+    {
+        $packedRefs = @file_get_contents("{$this->commonPath}/packed-refs");
+        if ($packedRefs === false) {
+            return [];
+        }
+
+        $names = [];
+        $pending = null;
+
+        foreach (preg_split('/\R/', $packedRefs) ?: [] as $line) {
+            // Строка ^<hash> — развёрнутое значение тега из предыдущей строки.
+            if (str_starts_with($line, '^')) {
+                if ($pending !== null && substr($line, 1) === $commitHash) {
+                    $names[] = $pending;
+                }
+                $pending = null;
+
+                continue;
+            }
+
+            $pending = null;
+            if (preg_match('/^([0-9a-f]{40,64})\s+refs\/tags\/(.+)$/', $line, $matches) === 1) {
+                if ($matches[1] === $commitHash) {
+                    $names[] = $matches[2];
+                }
+                $pending = $matches[2];
+            }
+        }
+
+        return $names;
+    }
+
+    /** @return list<string> */
+    private function findLooseTags(string $commitHash, string $prefix = ''): array
+    {
+        $directory = rtrim("{$this->commonPath}/refs/tags/{$prefix}", '/');
+        $entries = @scandir($directory);
+        if ($entries === false) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $name = $prefix === '' ? $entry : "{$prefix}/{$entry}";
+
+            // Теги могут лежать во вложенных каталогах: refs/tags/release/v1.
+            if (is_dir("{$directory}/{$entry}")) {
+                $names = array_merge($names, $this->findLooseTags($commitHash, $name));
+
+                continue;
+            }
+
+            $hash = trim((string) @file_get_contents("{$directory}/{$entry}"));
+            if ($this->isCommitHash($hash) && $this->peel($hash) === $commitHash) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     private function getCommitDate(string $commitHash): ?int
     {
         try {
-            $rawCommit = $this->readLooseObject($commitHash) ?? $this->readPackedObject($commitHash);
+            $object = $this->readObject($commitHash);
 
-            if ($rawCommit !== null && preg_match('/committer .*? (\d+) /', $rawCommit, $matches) === 1) {
+            if ($object !== null
+                && $object['type'] === self::TYPE_COMMIT
+                && preg_match('/committer .*? (\d+) /', $object['data'], $matches) === 1
+            ) {
                 return (int) $matches[1];
             }
         } catch (\Throwable $e) {
@@ -192,9 +318,16 @@ class Git
         return null;
     }
 
-    private function readLooseObject(string $commitHash): ?string
+    /** @return array{type: int, data: string}|null */
+    private function readObject(string $hash): ?array
     {
-        $suffix = '/'.substr($commitHash, 0, 2).'/'.substr($commitHash, 2);
+        return $this->readLooseObject($hash) ?? $this->readPackedObject($hash);
+    }
+
+    /** @return array{type: int, data: string}|null */
+    private function readLooseObject(string $hash): ?array
+    {
+        $suffix = '/'.substr($hash, 0, 2).'/'.substr($hash, 2);
 
         foreach ($this->objectDirectories() as $directory) {
             if (! is_file($directory.$suffix)) {
@@ -206,10 +339,20 @@ class Git
                 continue;
             }
 
+            // Loose-объект: "<тип> <размер>\0<содержимое>".
             $decoded = @zlib_decode($raw);
-            if ($decoded !== false) {
-                return $decoded;
+            $separator = $decoded === false ? false : strpos($decoded, "\0");
+            if ($decoded === false || $separator === false) {
+                continue;
             }
+
+            $type = match (explode(' ', substr($decoded, 0, $separator))[0]) {
+                'commit' => self::TYPE_COMMIT,
+                'tag' => self::TYPE_TAG,
+                default => 0,
+            };
+
+            return ['type' => $type, 'data' => substr($decoded, $separator + 1)];
         }
 
         return null;
@@ -260,7 +403,8 @@ class Git
      * Разбираем .idx (версии 2), находим смещение и распаковываем объект из .pack,
      * разворачивая дельты (git хранит дельтами и часть коммитов).
      */
-    private function readPackedObject(string $commitHash): ?string
+    /** @return array{type: int, data: string}|null */
+    private function readPackedObject(string $commitHash): ?array
     {
         $indexes = [];
         foreach ($this->objectDirectories() as $directory) {
@@ -286,8 +430,8 @@ class Git
                 fclose($handle);
             }
 
-            if ($object !== null && $object['type'] === self::TYPE_COMMIT) {
-                return $object['data'];
+            if ($object !== null) {
+                return $object;
             }
         }
 

@@ -37,6 +37,18 @@ function removeDirectory(string $directory): void
     }
 }
 
+function tagRepository(string $directory): array
+{
+    git($directory, 'tag v1.0.0');
+    git($directory, 'commit --quiet --allow-empty -m "второй"');
+    git($directory, 'tag -a v2.0.0 -m "релиз 2.0"');
+
+    return [
+        'lightweight' => git($directory, 'rev-parse v1.0.0^{commit}'),
+        'annotated' => git($directory, 'rev-parse v2.0.0^{commit}'),
+    ];
+}
+
 /** Тип объекта в packfile: 1 — commit, 6 — OFS_DELTA, 7 — REF_DELTA. */
 function packedObjectType(string $repository, string $hash): int
 {
@@ -81,6 +93,7 @@ it('читает loose-объекты', function () {
 
     expect(readGit($this->repository))->toBe([
         'branchName' => 'main',
+        'tag' => null,
         'hash' => $hash,
         'date' => (int) $timestamp,
     ]);
@@ -97,6 +110,7 @@ it('читает объекты из packfile после git gc', function () {
     expect($loose)->toBe([]);
     expect(readGit($this->repository))->toBe([
         'branchName' => 'main',
+        'tag' => null,
         'hash' => $hash,
         'date' => (int) $timestamp,
     ]);
@@ -131,6 +145,7 @@ it('работает в git worktree, где .git — файл', function () {
     expect(is_file($worktree.'/.git'))->toBeTrue();
     expect(readGit($worktree))->toBe([
         'branchName' => 'worktree-branch',
+        'tag' => null,
         'hash' => $hash,
         'date' => (int) git($this->repository, "log -1 --format='%ct'"),
     ]);
@@ -165,6 +180,7 @@ it('разворачивает дельта-коммиты из packfile', funct
 
     expect(readGit($this->repository))->toBe([
         'branchName' => null,
+        'tag' => null,
         'hash' => $hash,
         'date' => (int) git($this->repository, "log -1 --format='%ct' ".$hash),
     ]);
@@ -234,9 +250,62 @@ it('читает 8-байтные смещения из .idx', function () {
 
     expect(readGit($this->repository))->toBe([
         'branchName' => null,
+        'tag' => null,
         'hash' => $hash,
         'date' => $timestamp,
     ]);
+});
+
+it('не находит тега, когда коммит не отмечен', function () {
+    expect(readGit($this->repository)['tag'])->toBeNull();
+});
+
+it('отдаёт имя тега на detached HEAD', function (string $tag, string $key) {
+    $commits = tagRepository($this->repository);
+    git($this->repository, 'checkout --quiet '.$tag);
+
+    expect(readGit($this->repository))->toMatchArray([
+        'branchName' => null,
+        'tag' => $tag,
+        'hash' => $commits[$key],
+    ]);
+})->with([
+    'лёгкий тег' => ['v1.0.0', 'lightweight'],
+    'аннотированный тег' => ['v2.0.0', 'annotated'],
+]);
+
+it('находит тег в packed-refs', function () {
+    $commits = tagRepository($this->repository);
+    git($this->repository, 'checkout --quiet v2.0.0');
+    git($this->repository, 'pack-refs --all');
+    removeDirectory($this->repository.'/.git/refs/tags');
+
+    expect(readGit($this->repository))->toMatchArray([
+        'tag' => 'v2.0.0',
+        'hash' => $commits['annotated'],
+    ]);
+});
+
+it('разбирает HEAD, указывающий на тег ссылкой', function () {
+    $commits = tagRepository($this->repository);
+    // Так HEAD не оставляет ни один деплой-инструмент, но раскладка валидная.
+    git($this->repository, 'symbolic-ref HEAD refs/tags/v2.0.0');
+
+    expect(readGit($this->repository))->toMatchArray([
+        'branchName' => null,
+        'tag' => 'v2.0.0',
+        'hash' => $commits['annotated'],
+        'date' => (int) git($this->repository, "log -1 --format='%ct' v2.0.0"),
+    ]);
+});
+
+it('из нескольких тегов берёт последний в натуральной сортировке', function () {
+    tagRepository($this->repository);
+    git($this->repository, 'checkout --quiet v2.0.0');
+    git($this->repository, 'tag v2.0.1');
+    git($this->repository, 'tag v10.0.0');
+
+    expect(readGit($this->repository)['tag'])->toBe('v10.0.0');
 });
 
 it('бросает исключение, если репозитория нет', function () {
