@@ -192,7 +192,12 @@ class Git
             return $hash;
         }
 
-        $object = $this->readObject($hash);
+        try {
+            $object = $this->readObject($hash);
+        } catch (\Throwable $e) {
+            return $hash;
+        }
+
         if ($object === null || $object['type'] !== self::TYPE_TAG) {
             return $hash;
         }
@@ -324,6 +329,22 @@ class Git
         return $this->readLooseObject($hash) ?? $this->readPackedObject($hash);
     }
 
+    /**
+     * Распаковка нужна только для чтения объектов. Ветка, хеш и теги из
+     * packed-refs читаются и без zlib, поэтому отсутствие расширения гасит
+     * только дату коммита, а не всю секцию.
+     */
+    private function decompress(string $raw): ?string
+    {
+        if (! function_exists('zlib_decode')) {
+            return null;
+        }
+
+        $decoded = @zlib_decode($raw);
+
+        return $decoded === false ? null : $decoded;
+    }
+
     /** @return array{type: int, data: string}|null */
     private function readLooseObject(string $hash): ?array
     {
@@ -340,9 +361,9 @@ class Git
             }
 
             // Loose-объект: "<тип> <размер>\0<содержимое>".
-            $decoded = @zlib_decode($raw);
-            $separator = $decoded === false ? false : strpos($decoded, "\0");
-            if ($decoded === false || $separator === false) {
+            $decoded = $this->decompress($raw);
+            $separator = $decoded === null ? false : strpos($decoded, "\0");
+            if ($decoded === null || $separator === false) {
                 continue;
             }
 
@@ -728,6 +749,10 @@ class Git
     private function inflateAt($handle, int $position, int $size): ?string
     {
         if (fseek($handle, $position) !== 0) {
+            return null;
+        }
+
+        if (! function_exists('inflate_init')) {
             return null;
         }
 
