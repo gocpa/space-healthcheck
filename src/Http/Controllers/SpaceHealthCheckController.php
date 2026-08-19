@@ -6,19 +6,12 @@ namespace GoCPA\SpaceHealthcheck\Http\Controllers;
 
 use Composer\InstalledVersions;
 use GoCPA\SpaceHealthcheck\Git;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller;
 use OutOfBoundsException;
 use Spatie\Health\ResultStores\ResultStore;
-use Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults;
 
-class SpaceHealthCheckController extends Controller
+class SpaceHealthCheckController
 {
-    use AuthorizesRequests;
-    use ValidatesRequests;
-
     /**
      * Выводит результат для мониторинга
      */
@@ -26,14 +19,17 @@ class SpaceHealthCheckController extends Controller
     {
         $result = [];
         try {
+            // Порядок важен: getHealthData() — единственная секция, которая может
+            // бросить (spatie/laravel-health опционален), поэтому она идёт последней.
+            // Иначе верхний catch обрубает всё, что присваивается после неё.
             $result['generatedAt'] = now()->timestamp;
-            $result['git'] = $this->getGitInfo();
-            $result['composer'] = $this->getComposerInfo();
-            $result['health'] = $this->getHealthData();
             $result['environment'] = config('app.env');
             $result['name'] = config('app.name');
             $result['env'] = config('app.env');
             $result['debug'] = config('app.debug');
+            $result['git'] = $this->getGitInfo();
+            $result['composer'] = $this->getComposerInfo();
+            $result['health'] = $this->getHealthData();
         } catch (\Throwable $th) {
             $result['exception'] = $th->getMessage();
         }
@@ -95,28 +91,17 @@ class SpaceHealthCheckController extends Controller
         }
     }
 
-    /** @return array<string,int|null> */
+    /** @return array<array-key, mixed>|null */
     private function getHealthData(): ?array
     {
-        /** @var ResultStore $resultStore */
-        $resultStore = app(ResultStore::class);
-
-        /** @var ?StoredCheckResults $latestResults */
-        $latestResults = $resultStore->latestResults();
+        $latestResults = app(ResultStore::class)->latestResults();
 
         if (is_null($latestResults)) {
             return null;
         }
 
-        $json = $latestResults->toJson();
+        $result = json_decode($latestResults->toJson(), true);
 
-        /** @var array<string, int|null> $result */
-        $result = json_decode($json, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return null;
-        }
-
-        return $result;
+        return is_array($result) ? $result : null;
     }
 }

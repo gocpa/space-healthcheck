@@ -63,7 +63,8 @@ jobs:
       - name: Install dependencies
         run: |
           composer require --dev "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
-          # Матрица с Laravel 10 / старым PHPUnit: Packagist advisory блокирует разрешение, пока audit.block-insecure=true
+          # Старые ветки Laravel остаются под advisory (CVE-2026-48019 закрыт только в 12.60 и 13.10),
+          # поэтому разрешение блокируется, пока audit.block-insecure=true
           composer config audit.block-insecure false
           composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-audit
 
@@ -112,6 +113,11 @@ jobs:
 
       - name: Install laravel and create temporary repository
         run: |
+          # Старые ветки Laravel целиком под advisory (CVE-2026-48019 закрыт только
+          # в 12.60 и 13.10), без этого create-project не разрешает зависимости.
+          # Ключ переезжал между версиями composer, поэтому ставим оба.
+          composer config --global audit.block-insecure false || true
+          composer config --global policy.advisories.block false || true
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
           composer require spatie/laravel-health gocpa/space-healthcheck:dev-${{ steps.extract_branch.outputs.branch }}
           echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
@@ -142,5 +148,17 @@ jobs:
         run: |
           echo "::debug::${{ fromJson(steps.testRequest.outputs.response).generatedAt }}"
           echo ${{ steps.testRequest.outputs.response }}
+
+      - name: Assert Response
+        run: |
+          echo '${{ steps.testRequest.outputs.response }}' > response.json
+          jq -e '.exception == null' response.json > /dev/null \
+            || (echo "::error::эндпоинт вернул exception" && jq . response.json && exit 1)
+          for key in generatedAt name env debug git composer; do
+            jq -e "has(\"$key\")" response.json > /dev/null \
+              || (echo "::error::в ответе нет ключа $key" && jq . response.json && exit 1)
+          done
+          jq -e '.git.hash != null and .git.date != null' response.json > /dev/null \
+            || (echo "::error::git-секция не заполнена" && jq .git response.json && exit 1)
 
 

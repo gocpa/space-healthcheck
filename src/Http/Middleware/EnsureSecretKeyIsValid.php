@@ -19,8 +19,12 @@ class EnsureSecretKeyIsValid
     public function handle(Request $request, Closure $next): Response
     {
         $secret = Config::get('space-healthcheck.secretKey');
-        abort_if(empty($secret), 403, 'No secret key set. Please set GOCPASPACE_HEALTHCHECK_SECRET in .env file.');
-        abort_if($request->header('x-space-secret-key') !== $secret, 404);
+        $secret = is_scalar($secret) ? (string) $secret : '';
+        abort_if($secret === '', 403, 'No secret key set. Please set GOCPASPACE_HEALTHCHECK_SECRET in .env file.');
+
+        // hash_equals — сравнение за постоянное время: эндпоинт публичный и без throttle.
+        $provided = $request->header('x-space-secret-key');
+        abort_unless(is_string($provided) && hash_equals($secret, $provided), 404);
 
         return $next($request);
     }

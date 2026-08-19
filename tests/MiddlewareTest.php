@@ -26,13 +26,9 @@ test('middleware возвращает 404 при неправильном клю
     $request = Request::create(route('space.check'));
     $next = fn () => response('correct result');
 
-    try {
-        $middleware = new EnsureSecretKeyIsValid;
-        $middleware->handle($request, $next);
-    } catch (HttpException $th) {
-    }
+    $middleware = new EnsureSecretKeyIsValid;
 
-    expect($th)->toBeInstanceOf(NotFoundHttpException::class);
+    expect(fn () => $middleware->handle($request, $next))->toThrow(NotFoundHttpException::class);
 });
 
 test('middleware возвращает 403 при пустом ключе', function () {
@@ -40,13 +36,13 @@ test('middleware возвращает 403 при пустом ключе', funct
     $request = Request::create(route('space.check'));
     $next = fn () => response('correct result');
 
-    try {
-        $middleware = new EnsureSecretKeyIsValid;
-        $middleware->handle($request, $next);
-    } catch (HttpException $th) {
-    }
+    $middleware = new EnsureSecretKeyIsValid;
 
-    expect($th)->toBeInstanceOf(HttpException::class);
-    expect($th->getStatusCode())->toBe(403);
-    expect($th->getMessage())->toBe('No secret key set. Please set GOCPASPACE_HEALTHCHECK_SECRET in .env file.');
+    try {
+        $middleware->handle($request, $next);
+        $this->fail('Ожидали HttpException');
+    } catch (HttpException $th) {
+        expect($th->getStatusCode())->toBe(403);
+        expect($th->getMessage())->toBe('No secret key set. Please set GOCPASPACE_HEALTHCHECK_SECRET in .env file.');
+    }
 });
