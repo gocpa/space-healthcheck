@@ -113,6 +113,11 @@ jobs:
 
       - name: Install laravel and create temporary repository
         run: |
+          # Старые ветки Laravel целиком под advisory (CVE-2026-48019 закрыт только
+          # в 12.60 и 13.10), без этого create-project не разрешает зависимости.
+          # Ключ переезжал между версиями composer, поэтому ставим оба.
+          composer config --global audit.block-insecure false || true
+          composer config --global policy.advisories.block false || true
           composer create-project "laravel/laravel:^${{ matrix.laravel }}.0" .
           composer require spatie/laravel-health gocpa/space-healthcheck:dev-${{ steps.extract_branch.outputs.branch }}
           echo "<?php return ['result_stores' => [Spatie\Health\ResultStores\CacheHealthResultStore::class => ['store' => 'file']]];" > config/health.php
