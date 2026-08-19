@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use GoCPA\SpaceHealthcheck\Commands\SpaceSendEnvironmentCommand;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -96,4 +97,53 @@ it('возвращает ошибку, если вебхук ответил ош
     fakeWebhook(500);
 
     $this->artisan('gocpaspace:send-environment')->assertFailed();
+});
+
+it('сливает конфиг horizon с настройками окружения', function () {
+    fakeWebhook();
+    Config::set('app.env', 'production');
+    Config::set('horizon.prefix', 'horizon:');
+    Config::set('horizon.defaults', [
+        'supervisor-1' => ['connection' => 'redis', 'queue' => ['default'], 'maxProcesses' => 1],
+    ]);
+    Config::set('horizon.environments', [
+        'production' => ['supervisor-1' => ['maxProcesses' => 10]],
+        'local' => ['supervisor-1' => ['maxProcesses' => 2]],
+    ]);
+
+    $this->artisan('gocpaspace:send-environment')->assertSuccessful();
+
+    Http::assertSent(function (Request $request) {
+        expect($request['queue']['horizon'])->toBe([
+            'prefix' => 'horizon:',
+            'config' => [
+                'supervisor-1' => ['connection' => 'redis', 'queue' => ['default'], 'maxProcesses' => 10],
+            ],
+        ]);
+
+        return true;
+    });
+});
+
+it('кладёт ошибку в horizon.th, когда horizon не установлен', function () {
+    fakeWebhook();
+
+    $this->artisan('gocpaspace:send-environment')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request) => isset($request['queue']['horizon']['th'])
+        && ! isset($request['queue']['horizon']['config']));
+});
+
+it('configString отвергает значения, которые не привести к строке', function () {
+    Config::set('space-healthcheck.folder', ['не', 'строка']);
+
+    expect(fn () => SpaceSendEnvironmentCommand::configString('space-healthcheck.folder'))
+        ->toThrow(InvalidArgumentException::class, 'must be a string, array given');
+});
+
+it('configArray отвергает не массив', function () {
+    Config::set('space-healthcheck.folder', 'строка');
+
+    expect(fn () => SpaceSendEnvironmentCommand::configArray('space-healthcheck.folder'))
+        ->toThrow(InvalidArgumentException::class, 'must be an array, string given');
 });

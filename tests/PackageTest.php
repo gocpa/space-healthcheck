@@ -4,6 +4,7 @@ use GoCPA\SpaceHealthcheck\Git;
 use Illuminate\Support\Facades\Config;
 use Mockery\MockInterface;
 use Spatie\Health\ResultStores\ResultStore;
+use Spatie\Health\ResultStores\StoredCheckResults\StoredCheckResults;
 
 use function Pest\Laravel\getJson;
 
@@ -46,6 +47,30 @@ it('не теряет остальные секции, когда health нед�
         ->assertJsonStructure(['generatedAt', 'environment', 'name', 'env', 'debug', 'git', 'composer', 'exception'])
         ->assertJsonPath('exception', 'health недоступен')
         ->assertJsonPath('env', config('app.env'));
+});
+
+it('кладёт текст ошибки в git.exception, если репозитория нет', function () {
+    // Настоящий Git вместо мока: в каталоге testbench нет .git/.
+    app()->bind(Git::class, fn () => new Git);
+
+    getJson('/space/check', ['x-space-secret-key' => 'mitrofan'])
+        ->assertOk()
+        ->assertJsonPath('git.exception', 'git not found')
+        // остальные секции при этом на месте
+        ->assertJsonStructure(['generatedAt', 'name', 'env', 'debug', 'composer']);
+});
+
+it('отдаёт данные health, когда они есть', function () {
+    $this->mock(ResultStore::class, function (MockInterface $mock) {
+        $results = Mockery::mock(StoredCheckResults::class);
+        $results->shouldReceive('toJson')->andReturn('{"finishedAt":1700000000,"checkResults":[]}');
+        $mock->shouldReceive('latestResults')->andReturn($results);
+    });
+
+    getJson('/space/check', ['x-space-secret-key' => 'mitrofan'])
+        ->assertOk()
+        ->assertJsonPath('health.finishedAt', 1700000000)
+        ->assertJsonPath('health.checkResults', []);
 });
 
 it('has result with incorrect secretKey', function () {

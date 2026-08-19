@@ -37,6 +37,24 @@ function removeDirectory(string $directory): void
     }
 }
 
+/** Тип объекта в packfile: 1 — commit, 6 — OFS_DELTA, 7 — REF_DELTA. */
+function packedObjectType(string $repository, string $hash): int
+{
+    $index = glob($repository.'/.git/objects/pack/*.idx')[0];
+    $data = (string) file_get_contents($index);
+
+    $total = (int) unpack('N', substr($data, 8 + 255 * 4, 4))[1];
+    $hashes = substr($data, 1032, $total * 20);
+    $position = intdiv((int) strpos($hashes, (string) hex2bin($hash)), 20);
+
+    $offsets = 1032 + $total * 20 + $total * 4;
+    $offset = (int) unpack('N', substr($data, $offsets + $position * 4, 4))[1];
+
+    $pack = (string) file_get_contents(substr($index, 0, -4).'.pack');
+
+    return (ord($pack[$offset]) >> 4) & 0x07;
+}
+
 /** @return array{"branchName": ?string, "hash": ?string, "date": ?int} */
 function readGit(string $directory): array
 {
@@ -118,6 +136,89 @@ it('работает в git worktree, где .git — файл', function () {
     ]);
 
     removeDirectory($worktree);
+});
+
+it('разворачивает дельта-коммиты из packfile', function (string $repack, int $expectedType) {
+    // git хранит дельтами и коммиты: множество похожих сообщений это гарантирует.
+    $message = str_repeat('Длинное однотипное сообщение коммита для дельтификации ', 6);
+    for ($i = 1; $i <= 20; $i++) {
+        git($this->repository, sprintf('commit --quiet --allow-empty -m %s', escapeshellarg($message.$i)));
+    }
+    git($this->repository, $repack);
+
+    $index = glob($this->repository.'/.git/objects/pack/*.idx')[0] ?? '';
+    $deltas = [];
+    foreach (explode("\n", git($this->repository, 'verify-pack -v '.escapeshellarg($index))) as $line) {
+        $columns = preg_split('/\s+/', trim($line)) ?: [];
+        // У дельты в verify-pack есть два лишних столбца: глубина и база.
+        if (count($columns) === 7 && $columns[1] === 'commit') {
+            $deltas[] = $columns[0];
+        }
+    }
+
+    expect($deltas)->not->toBeEmpty('фикстура должна содержать дельта-коммиты');
+
+    $hash = $deltas[0];
+    expect(packedObjectType($this->repository, $hash))->toBe($expectedType);
+
+    git($this->repository, 'checkout --quiet --detach '.$hash);
+
+    expect(readGit($this->repository))->toBe([
+        'branchName' => null,
+        'hash' => $hash,
+        'date' => (int) git($this->repository, "log -1 --format='%ct' ".$hash),
+    ]);
+})->with([
+    'OFS_DELTA' => ['repack -adf --depth=50 --window=250 -q', 6],
+    'REF_DELTA' => ['-c repack.useDeltaBaseOffset=false repack -adf --depth=50 --window=250 -q', 7],
+]);
+
+it('читает 8-байтные смещения из .idx', function () {
+    // Большие смещения git пишет только для packfile тяжелее 2 ГБ, поэтому
+    // собираем .idx с такой таблицей вручную.
+    $hash = str_repeat('ab', 20);
+    $timestamp = 1700000000;
+    $commit = 'tree '.str_repeat('cd', 20)."\n"
+        ."author Test <test@example.com> {$timestamp} +0000\n"
+        ."committer Test <test@example.com> {$timestamp} +0000\n\nfixture\n";
+
+    $packDirectory = $this->repository.'/.git/objects/pack';
+    $packOffset = 12;
+
+    // Заголовок объекта: тип 1 (commit) + размер в 7-битных группах.
+    $size = strlen($commit);
+    $header = chr(0x80 | (1 << 4) | ($size & 0x0F));
+    $size >>= 4;
+    while ($size > 0) {
+        $header .= chr(($size > 0x7F ? 0x80 : 0) | ($size & 0x7F));
+        $size >>= 7;
+    }
+
+    file_put_contents($packDirectory.'/pack-large.pack', "PACK\0\0\0\2\0\0\0\1".$header.gzcompress($commit));
+
+    $binaryHash = hex2bin($hash);
+    $fanout = '';
+    for ($i = 0; $i < 256; $i++) {
+        $fanout .= pack('N', $i < ord($binaryHash[0]) ? 0 : 1);
+    }
+
+    file_put_contents($packDirectory.'/pack-large.idx',
+        "\xfftOc\0\0\0\2"
+        .$fanout
+        .$binaryHash                     // таблица хешей
+        .pack('N', 0)                    // crc
+        .pack('N', 0x80000000)           // смещение: старший бит — ссылка в таблицу больших
+        .pack('J', $packOffset)          // таблица 8-байтных смещений
+        .str_repeat("\0", 40)            // контрольные суммы, мы их не читаем
+    );
+
+    file_put_contents($this->repository.'/.git/HEAD', $hash."\n");
+
+    expect(readGit($this->repository))->toBe([
+        'branchName' => null,
+        'hash' => $hash,
+        'date' => $timestamp,
+    ]);
 });
 
 it('бросает исключение, если репозитория нет', function () {
