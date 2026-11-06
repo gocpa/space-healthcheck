@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace GoCPA\SpaceHealthcheck\Commands;
 
+use GoCPA\SpaceHealthcheck\Git;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -15,12 +19,44 @@ use Symfony\Component\Console\Attribute\AsCommand;
 )]
 final class SpaceSendEnvironmentCommand extends Command
 {
+    public const DEFAULT_WEBHOOK_URL = 'https://gocpa.space/api/webhooks/project/environments/update';
+
+    /** Этапы деплоя; без --event команда сообщает о завершённом деплое, как раньше. */
+    public const EVENTS = ['started', 'finished', 'failed'];
+
+    /** Всего попыток отправки, включая первую. */
+    private const ATTEMPTS = 3;
+
+    private const RETRY_DELAY_MS = 2000;
+
+    private const MESSAGE_LIMIT = 2000;
+
+    private const MIGRATIONS_LIMIT = 100;
+
+    /** @var string */
+    protected $signature = 'gocpaspace:send-environment
+        {--event=finished : Этап деплоя: started, finished или failed}
+        {--deploy-id= : Идентификатор запуска, общий для started/finished/failed одного деплоя}
+        {--by= : Кто запустил деплой}
+        {--message= : Пояснение к этапу, обычно текст ошибки при failed (до 2000 символов)}';
+
     public function handle(): int
     {
-        $this->components->info('Отправка данных стенда в gocpa.space');
+        $event = $this->option('event');
+        if (! is_string($event) || ! in_array($event, self::EVENTS, true)) {
+            $this->error(sprintf(
+                '❌ Неизвестный этап деплоя «%s», допустимые значения --event: %s',
+                is_string($event) ? $event : '',
+                implode(', ', self::EVENTS),
+            ));
+
+            return Command::FAILURE;
+        }
+
+        $this->components->info(sprintf('Отправка данных стенда в gocpa.space (этап: %s)', $event));
 
         try {
-            if (! $this->sendEnvironmentPayload()) {
+            if (! $this->sendEnvironmentPayload($event)) {
                 return Command::FAILURE;
             }
 
@@ -35,7 +71,7 @@ final class SpaceSendEnvironmentCommand extends Command
         return Command::SUCCESS;
     }
 
-    protected function sendEnvironmentPayload(): bool
+    protected function sendEnvironmentPayload(string $event): bool
     {
         if (! $secretKey = self::configString('space-healthcheck.secretKey')) {
             $this->warn('⚠️ Переменная GOCPASPACE_HEALTHCHECK_SECRET не найдена в .env');
@@ -43,31 +79,149 @@ final class SpaceSendEnvironmentCommand extends Command
             return false;
         }
 
-        $payload = $this->buildPayload();
+        // Тело собирается один раз, до retry(), — во всех попытках уходит одно и то же.
+        $payload = $this->buildPayload($event, now()->getTimestamp());
 
         Http::acceptJson()
             ->timeout(15)
             ->withHeader('x-space-secret-key', $secretKey)
-            ->post(
-                'https://gocpa.space/api/webhooks/project/environments/update',
-                $payload
-            )
+            // Позиционные аргументы — сигнатура retry(int, int, callable, bool)
+            // совпадает во всём диапазоне Laravel 10–13.
+            ->retry(self::ATTEMPTS, self::RETRY_DELAY_MS, fn (\Throwable $e): bool => self::shouldRetry($e), true)
+            ->post(self::configString('space-healthcheck.webhookUrl') ?: self::DEFAULT_WEBHOOK_URL, $payload)
             ->throw();
 
         return true;
     }
 
+    /**
+     * Повторяем только то, что может пройти со второго раза: обрыв соединения,
+     * 5xx и 429. Остальные 4xx не повторяем — 404 означает неверный секрет.
+     */
+    private static function shouldRetry(\Throwable $e): bool
+    {
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        if ($e instanceof RequestException) {
+            $status = $e->response->status();
+
+            return $status === 429 || $status >= 500;
+        }
+
+        return false;
+    }
+
     /** @return array<string, mixed> */
-    protected function buildPayload(): array
+    protected function buildPayload(string $event, int $sentAt): array
     {
         return [
+            // Порядок и ключи старых секций не менять — их читает портал.
             'app' => $this->getAppInfo(),
             'mail' => $this->getMailInfo(),
             'database' => $this->getDatabaseInfo(),
             'queue' => $this->getQueueInfo(),
             'space-healthcheck' => $this->getHealthcheckInfo(),
             'cloud' => $this->getCloudInfo(),
+            'git' => $this->getGitInfo(),
+            'deploy' => $this->getDeployInfo($event, $sentAt),
+            'migrations' => $this->getMigrationsInfo(),
         ];
+    }
+
+    /**
+     * Та же форма, что в /space/check: без .git/ — текст ошибки, отправка не падает.
+     *
+     * @return array<string, string|int|null>
+     */
+    protected function getGitInfo(): array
+    {
+        try {
+            return app(Git::class)->run();
+        } catch (\Throwable $th) {
+            return ['exception' => $th->getMessage()];
+        }
+    }
+
+    /**
+     * @return array{event: string, id: ?string, by: ?string, message: ?string, maintenance: ?bool, sentAt: int}
+     */
+    protected function getDeployInfo(string $event, int $sentAt): array
+    {
+        $message = $this->stringOption('message');
+
+        return [
+            'event' => $event,
+            'id' => $this->stringOption('deploy-id'),
+            // Инициатора не угадываем: владелец процесса — не тот, кто запустил деплой.
+            'by' => $this->stringOption('by'),
+            'message' => $message !== null ? mb_substr($message, 0, self::MESSAGE_LIMIT) : null,
+            'maintenance' => $this->isDownForMaintenance(),
+            'sentAt' => $sentAt,
+        ];
+    }
+
+    /** null — состояние узнать не удалось (например, недоступен cache-драйвер режима обслуживания). */
+    private function isDownForMaintenance(): ?bool
+    {
+        try {
+            return app()->isDownForMaintenance();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Миграции последнего batch основного подключения. Свежий ли это batch,
+     * решает портал, сравнивая номер с прошлым деплоем.
+     *
+     * @return array{batch: ?int, items: list<string>}|array{exception: string}
+     */
+    protected function getMigrationsInfo(): array
+    {
+        try {
+            $table = self::migrationsTable();
+            $batch = DB::connection()->table($table)->max('batch');
+
+            if (! is_numeric($batch)) {
+                return ['batch' => null, 'items' => []];
+            }
+
+            $batch = (int) $batch;
+            $items = DB::connection()->table($table)
+                ->where('batch', $batch)
+                ->orderBy('migration')
+                ->limit(self::MIGRATIONS_LIMIT)
+                ->pluck('migration')
+                ->all();
+
+            return [
+                'batch' => $batch,
+                'items' => array_values(array_filter($items, 'is_string')),
+            ];
+        } catch (\Throwable $th) {
+            return ['exception' => $th->getMessage()];
+        }
+    }
+
+    /** В Laravel 10 database.migrations — строка, в 11+ — массив с ключом table. */
+    private static function migrationsTable(): string
+    {
+        $config = config('database.migrations');
+        if (is_array($config)) {
+            $config = $config['table'] ?? null;
+        }
+
+        return is_string($config) && $config !== '' ? $config : 'migrations';
+    }
+
+    /** Пустое значение опции равносильно её отсутствию. */
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        return is_string($value) && trim($value) !== '' ? $value : null;
     }
 
     /** @return array{name: string, env: string, url: string, timezone: string} */
